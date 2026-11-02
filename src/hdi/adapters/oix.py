@@ -100,8 +100,13 @@ class OIXAdapter(Adapter):
             raise EventValidationError("envelope_sha256 must be lowercase SHA-256")
         if canonical_envelope_sha256(envelope) != envelope_sha256:
             raise EventValidationError("OIX envelope digest does not match supplied digest")
+        issued_at = body.get("issued_at")
+        expires_at = body.get("expires_at")
+        if (not isinstance(issued_at, int) or isinstance(issued_at, bool)
+                or not isinstance(expires_at, int) or isinstance(expires_at, bool)):
+            raise EventValidationError("OIX timestamps must be integer Unix seconds")
         try:
-            occurred_at = datetime.fromtimestamp(body["issued_at"], UTC).isoformat().replace("+00:00", "Z")
+            occurred_at = datetime.fromtimestamp(issued_at, UTC).isoformat().replace("+00:00", "Z")
         except (KeyError, TypeError, ValueError, OverflowError, OSError) as exc:
             raise EventValidationError("invalid OIX issued_at timestamp") from exc
         payload = {
