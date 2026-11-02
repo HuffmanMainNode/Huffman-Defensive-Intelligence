@@ -31,7 +31,7 @@ Do not infer that an installed adapter grants access to an upstream database, ag
 | Validate an HDI event | `hdi validate <file>` | Validation is not authenticity verification |
 | Discover advertised local integration capabilities | `hdi capabilities` | Catalogue is descriptive, not an authorization grant |
 | Persist events for one local writer | `hdi.journal.Journal` | JSONL is not safe for concurrent processes |
-| Persist events for concurrent local workers | `hdi.sqlite_journal.SQLiteJournal` | Same-host only; at-least-once delivery; downstream idempotency required |
+| Persist events for concurrent local workers | `hdi.sqlite_journal.SQLiteJournal` | Same-host only; every claim returns a unique `lease_token`; pass that exact token to `acknowledge` or `release`; at-least-once delivery still requires downstream idempotency |
 | Exercise four adapter processes | `python examples/four_process_integration_demo.py` | Synthetic fixtures only; OIX/Cyber verification is test attestation |
 
 ## Evidence handling protocol
