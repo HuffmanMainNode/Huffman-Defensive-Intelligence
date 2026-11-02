@@ -18,7 +18,7 @@ result = source.import_into(target, limit=100)
 print(result.imported_count, result.last_sequence)
 ```
 
-Use a stable `source_id` for the same source database across restarts. The cursor is stored in the HDI target database, not in the Open-Swarm source database.
+Use a stable `source_id` for the same source database across restarts. HDI binds that cursor to the resolved source database path and rejects reuse of the same ID for a different path. If the database is intentionally moved, configure a new source ID or perform a reviewed cursor migration. The cursor is stored in the HDI target database, not in the Open-Swarm source database.
 
 ## Read-only and validation behavior
 
