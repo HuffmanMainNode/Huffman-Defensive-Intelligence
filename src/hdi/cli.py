@@ -4,6 +4,7 @@ import sys
 
 from hdi.model import EventValidationError, HDIEvent
 
+
 def main():
     parser = argparse.ArgumentParser(prog="hdi")
     sub = parser.add_subparsers(dest="command", required=True)
