@@ -3,6 +3,7 @@ from pathlib import Path
 
 from hdi.model import HDIEvent
 
+
 class Journal:
     """Local single-writer JSONL journal, not a distributed event broker."""
 
