@@ -1,6 +1,6 @@
 # Fault-injection and recovery coverage
 
-This matrix separates behaviors that are exercised by automated tests from failure modes that still require a transport or deployment environment. A passing local test is not a production certification.
+This matrix separates behaviors exercised by automated tests from failure modes that still require a transport or deployment environment. A passing local test is not a production certification.
 
 ## Automated coverage
 
@@ -12,6 +12,7 @@ This matrix separates behaviors that are exercised by automated tests from failu
 | Worker stops after claiming a delivery | Lease expires and a restarted worker can reclaim the same event | `tests/test_sqlite_journal.py` |
 | Transient delivery failure | Explicit release returns the item to pending | `tests/test_sqlite_journal.py` |
 | Wrong worker, stale token, expired lease or reused worker ID acknowledges/releases | Reject with `LeaseError`; each claim has a distinct fencing token | `tests/test_sqlite_journal.py` |
+| Child process exits abruptly after event insert but before commit | SQLite recovery rolls back the uncommitted event and outbox transaction; a subsequent normal append succeeds | `tests/test_sqlite_journal.py::test_process_death_before_commit_rolls_back_entire_append` |
 | Replayed OIX sender nonce or message ID | Durable replay gate rejects reuse; identical accepted envelope retry is idempotent | `tests/test_oix_authenticated_ingress.py` |
 | Expired or too-far-future OIX message | Reject during message verification | `tests/test_oix_authenticated_ingress.py` |
 | Invalid signature or untrusted peer key | Reject before durable OIX acceptance | `tests/test_oix_authenticated_ingress.py` |
@@ -20,10 +21,12 @@ This matrix separates behaviors that are exercised by automated tests from failu
 | Repeated Open-Swarm import | Stable event identity and source cursor prevent duplicate event/outbox rows | `tests/test_open_swarm_importer.py` |
 | Cross-project adapter contract mismatch | Reject invalid source shape, verification or digest | `tests/test_upstream_adapters.py` |
 
+The abrupt-exit test covers process death before SQLite commit at two transaction points. It does not simulate power loss, storage-controller failure, filesystem corruption, or a kill during the commit syscall.
+
 ## Not yet tested or implemented
 
+- **Commit-boundary and power-loss testing:** no hardware-level power-cut or storage-controller failure test has been completed.
 - **Network disconnect/reconnect and delayed delivery:** HDI does not currently provide a network listener or supervised WAN relay. These require a real transport test harness.
-- **Process termination during an in-flight SQLite transaction:** transaction atomicity is relied upon, but hard-kill fault injection at commit boundaries has not been run.
 - **Storage exhaustion, filesystem errors, database corruption and restore drills:** no operational disaster-recovery test has been completed.
 - **External side-effect deduplication:** HDI provides at-least-once outbox delivery. It cannot guarantee exactly-once effects in downstream systems.
 - **Peer key rotation/revocation and replay-record retention operations:** these remain operator-managed and are not automated.
