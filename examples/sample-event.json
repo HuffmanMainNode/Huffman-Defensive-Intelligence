@@ -1,0 +1,21 @@
+{
+  "event_id": "evt-demo-0001",
+  "event_type": "osint.observation.created",
+  "source_project": "halloween_osint",
+  "occurred_at": "2026-11-02T12:00:00Z",
+  "schema_version": "1.0",
+  "correlation_id": "case-demo-0001",
+  "payload": {
+    "classification": "public-source-observation",
+    "confidence": "unassessed",
+    "summary": "Example only. Replace with a sourced observation."
+  },
+  "evidence": [
+    {
+      "source_project": "halloween_osint",
+      "source_id": "evidence-demo-0001",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "uri": "https://example.org/public-record"
+    }
+  ]
+}
