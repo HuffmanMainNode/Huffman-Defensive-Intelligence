@@ -16,7 +16,10 @@ dev = ["pytest>=8.0", "ruff>=0.5"]
 [project.scripts]
 hdi = "hdi.cli:main"
 
-[tool.setuptools.package-data]\nhdi = ["agent-capabilities.json"]\n\n[tool.setuptools.packages.find]
+[tool.setuptools.package-data]
+hdi = ["agent-capabilities.json"]
+
+[tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
