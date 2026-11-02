@@ -168,12 +168,14 @@ class OpenSwarmSQLiteImporter:
 
     def import_into(self, journal, *, limit: int = 100) -> OpenSwarmImportResult:
         """Import the next source batch with an atomic HDI cursor update."""
-        offset = journal.source_offset(self.source_id)
+        source_identity = str(self.source_database)
+        offset = journal.source_offset(self.source_id, source_identity=source_identity)
         events, event_ids, last_sequence = self._read_batch(offset, limit)
         if not events:
             return OpenSwarmImportResult(self.source_id, 0, offset, ())
         journal.append_batch_with_offset(
-            events, source_id=self.source_id, last_sequence=last_sequence
+            events, source_id=self.source_id, last_sequence=last_sequence,
+            source_identity=source_identity
         )
         return OpenSwarmImportResult(
             self.source_id, len(events), last_sequence, event_ids
