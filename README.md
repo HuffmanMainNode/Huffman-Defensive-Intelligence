@@ -78,3 +78,12 @@ HDI now includes `HalloweenManifestImporter` for bounded, read-only ingestion of
 The importer records the manifest digest and file metadata in the HDI journal while redacting the manifest's root path. It reads only the manifest file. It does not follow the manifest root, open evidence files, or independently verify their current contents. Use Halloween OSINT's own verification command when byte-level verification of the evidence directory is required.
 
 See [Halloween Manifest Import](docs/HALLOWEEN_MANIFEST_IMPORT.md).
+
+
+## HDI 0.7.0: verified Cyber Observatory evidence ingress
+
+HDI can now verify an OIX v0.1 signed `evidence.submit` envelope against an operator-trusted Ed25519 peer key, validate the Cyber Observatory evidence payload, durably accept the OIX replay key, and append a separate normalized Cyber evidence event.
+
+The journal retains both provenance layers: the original OIX message and the normalized Cyber evidence record. Repeated identical deliveries are idempotent. Invalid evidence payloads are rejected before replay acceptance. See [Cyber Evidence Ingress](docs/CYBER_EVIDENCE_INGRESS.md).
+
+This remains an in-process local integration. It does not create an OIX network listener, synchronize trust stores or revocations, fetch the report artifact, or bypass the OIX pending-review process.
