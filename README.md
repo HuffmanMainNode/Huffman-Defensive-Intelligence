@@ -18,10 +18,13 @@ python -m venv .venv
 . .venv/bin/activate
 pip install -e ".[dev]"
 pytest
-python -m hdi.cli validate examples/sample-event.json
+hdi --version
+hdi guide
+hdi capabilities
+hdi validate examples/sample-event.json
 ```
 
-## 0.1.0 scope
+## Foundation scope
 
 Includes a versioned event envelope, evidence-reference validation, four source-specific adapter contracts, a local JSONL journal, routing helper, validation CLI, tests, and CI.
 
@@ -94,4 +97,10 @@ This remains an in-process local integration. It does not create an OIX network 
 The conformance suite now exercises OIX, Open-Swarm, Halloween OSINT and Cyber Observatory adapters against one HDI journal. It verifies authenticated OIX ingestion, source-specific normalization, evidence provenance, distinct OIX/Cyber event identities, and idempotent repeat ingestion without duplicate outbox rows.
 
 This is a deterministic in-process integration test using synthetic fixtures. It is not a four-process deployment test, a WAN mesh, or a production environment. See [Cross-Project Conformance](docs/CROSS_PROJECT_CONFORMANCE.md).
-\n\n## Start here: human and agent onboarding\n\nNew operators: begin with [Human Onboarding](docs/USER-ONBOARDING.md). AI agents and automation workers: read [Agent Onboarding](docs/AGENT-ONBOARDING.md) and the repository-level [AGENTS.md](AGENTS.md) before using adapters.\n\nAfter installation, run `hdi guide` for the first steps and `hdi capabilities` for the machine-readable adapter catalogue. The catalogue is descriptive, not an authorization grant. HDI does not currently expose an MCP server or hosted API.\n\nThe package version is 0.9.0. This is an experimental local integration release, not a production deployment claim.\n
+\n\n## Start here: human and agent onboarding
+
+New operators: begin with [Human Onboarding](docs/USER-ONBOARDING.md). AI agents and automation workers: read [Agent Onboarding](docs/AGENT-ONBOARDING.md) and the repository-level [AGENTS.md](AGENTS.md) before using adapters.
+
+After installation, run `hdi guide` for the first steps and `hdi capabilities` for the machine-readable adapter catalogue. The catalogue is descriptive, not an authorization grant. HDI does not currently expose an MCP server or hosted API.
+
+The package version is 0.9.0. This is an experimental local integration release, not a production deployment claim.
