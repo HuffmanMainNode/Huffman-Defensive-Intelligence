@@ -126,7 +126,8 @@
         "lease_claim_acknowledge_release",
         "lease_expiry_redelivery",
         "durable_oix_replay_acceptance",
-        "atomic_open_swarm_source_offsets"
+        "atomic_open_swarm_source_offsets",
+        "per_claim_lease_fencing_token_required_for_ack_and_release"
       ],
       "important_limits": [
         "SQLite concurrency is limited to a local database file and host.",

@@ -11,7 +11,7 @@ This matrix separates behaviors that are exercised by automated tests from failu
 | Concurrent local writer processes | SQLite initialization retries lock/busy collisions; transactional append serializes writers | `tests/test_sqlite_journal.py`, `tests/test_four_process_integration.py` |
 | Worker stops after claiming a delivery | Lease expires and a restarted worker can reclaim the same event | `tests/test_sqlite_journal.py` |
 | Transient delivery failure | Explicit release returns the item to pending | `tests/test_sqlite_journal.py` |
-| Wrong worker acknowledges or releases a lease | Reject with `LeaseError` | `tests/test_sqlite_journal.py` |
+| Wrong worker, stale token, expired lease or reused worker ID acknowledges/releases | Reject with `LeaseError`; each claim has a distinct fencing token | `tests/test_sqlite_journal.py` |
 | Replayed OIX sender nonce or message ID | Durable replay gate rejects reuse; identical accepted envelope retry is idempotent | `tests/test_oix_authenticated_ingress.py` |
 | Expired or too-far-future OIX message | Reject during message verification | `tests/test_oix_authenticated_ingress.py` |
 | Invalid signature or untrusted peer key | Reject before durable OIX acceptance | `tests/test_oix_authenticated_ingress.py` |
@@ -25,7 +25,6 @@ This matrix separates behaviors that are exercised by automated tests from failu
 - **Network disconnect/reconnect and delayed delivery:** HDI does not currently provide a network listener or supervised WAN relay. These require a real transport test harness.
 - **Process termination during an in-flight SQLite transaction:** transaction atomicity is relied upon, but hard-kill fault injection at commit boundaries has not been run.
 - **Storage exhaustion, filesystem errors, database corruption and restore drills:** no operational disaster-recovery test has been completed.
-- **Lease fencing across worker identity reuse:** worker IDs should be unique per live worker instance. A future lease-token/fencing design is needed to protect against stale processes reusing the same worker ID.
 - **External side-effect deduplication:** HDI provides at-least-once outbox delivery. It cannot guarantee exactly-once effects in downstream systems.
 - **Peer key rotation/revocation and replay-record retention operations:** these remain operator-managed and are not automated.
 
