@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 import hashlib
 import json
 import re
+import unicodedata
 
 from hdi.adapters.base import Adapter
 from hdi.model import HDIEvent, EventValidationError
@@ -23,6 +24,42 @@ REQUIRED_CHECKS = (
     "replay_checked", "payload_schema_valid",
 )
 
+
+
+def _normalize_canonical(value, depth=0):
+    if depth > 32:
+        raise EventValidationError("OIX envelope nesting exceeds 32 levels")
+    if value is None or isinstance(value, (bool, int)):
+        return value
+    if isinstance(value, float):
+        raise EventValidationError("OIX canonical data cannot contain floats")
+    if isinstance(value, str):
+        return unicodedata.normalize("NFC", value)
+    if isinstance(value, list):
+        if len(value) > 10_000:
+            raise EventValidationError("OIX envelope array exceeds item limit")
+        return [_normalize_canonical(item, depth + 1) for item in value]
+    if isinstance(value, dict):
+        if len(value) > 10_000:
+            raise EventValidationError("OIX envelope object exceeds member limit")
+        normalized = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise EventValidationError("OIX envelope keys must be strings")
+            key = unicodedata.normalize("NFC", key)
+            if key in normalized:
+                raise EventValidationError("duplicate key after Unicode normalization")
+            normalized[key] = _normalize_canonical(item, depth + 1)
+        return normalized
+    raise EventValidationError("OIX envelope contains a non-canonical value")
+
+
+def canonical_envelope_sha256(envelope):
+    normalized = _normalize_canonical(envelope)
+    encoded = json.dumps(
+        normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 class OIXAdapter(Adapter):
     """Normalize OIX envelopes only after the upstream verifier has approved them."""
@@ -57,8 +94,12 @@ class OIXAdapter(Adapter):
             raise EventValidationError("OIX message identity is missing")
         if not isinstance(body.get("recipient"), str) or not body["recipient"]:
             raise EventValidationError("OIX recipient is missing")
+        if not isinstance(envelope.get("signature"), str) or not envelope["signature"]:
+            raise EventValidationError("OIX signature field is missing")
         if not SHA256.fullmatch(envelope_sha256 or ""):
             raise EventValidationError("envelope_sha256 must be lowercase SHA-256")
+        if canonical_envelope_sha256(envelope) != envelope_sha256:
+            raise EventValidationError("OIX envelope digest does not match supplied digest")
         try:
             occurred_at = datetime.fromtimestamp(body["issued_at"], UTC).isoformat().replace("+00:00", "Z")
         except (KeyError, TypeError, ValueError, OverflowError, OSError) as exc:
