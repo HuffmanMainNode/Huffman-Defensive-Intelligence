@@ -126,13 +126,16 @@ class CyberObservatoryAdapter(Adapter):
         trusted_signing_public_key,
         local_agent_id,
         journal,
+        inbox,
+        work_id,
         now=None,
     ):
         """Verify a signed OIX evidence.submit, replay-accept it, then journal its evidence event.
 
-        The trusted public key must come from an operator-controlled trust store.
-        The OIX envelope event and normalized Cyber evidence event use distinct
-        deterministic IDs so both provenance layers can coexist in the journal.
+        The trusted public key and inbox must come from the operator-controlled
+        OIX receiver. The matching inbound evidence work item must already be
+        approved. The OIX envelope event and normalized Cyber evidence event
+        use distinct deterministic IDs so both provenance layers coexist.
         """
         verified = OIXAdapter().verify_and_normalize_envelope(
             envelope,
@@ -143,6 +146,26 @@ class CyberObservatoryAdapter(Adapter):
         )
         if verified.event.payload.get("message_type") != "evidence.submit":
             raise EventValidationError("OIX message is not evidence.submit")
+        if not isinstance(work_id, str) or not work_id:
+            raise EventValidationError("approved OIX evidence work_id is required")
+        try:
+            current_trusted_key = inbox.trusted_peer_public_key(verified.sender)
+            work = inbox.get_work(work_id)
+        except (AttributeError, KeyError, TypeError, ValueError) as exc:
+            raise EventValidationError("a live OIX inbox with a trusted peer and work lookup is required") from exc
+        if current_trusted_key != trusted_signing_public_key:
+            raise EventValidationError("OIX peer is no longer trusted by the supplied inbox")
+        if (
+            not isinstance(work, dict)
+            or work.get("status") != "approved"
+            or work.get("work_type") != "evidence.submit"
+            or work.get("sender") != verified.sender
+            or work.get("message_id") != verified.event.event_id
+            or work.get("payload") != verified.event.payload.get("message_payload")
+            or not isinstance(work.get("decided_at"), int)
+            or isinstance(work.get("decided_at"), bool)
+        ):
+            raise EventValidationError("matching OIX evidence submission lacks operator approval")
         message_payload = verified.event.payload.get("message_payload")
         verification = {
             "signature_valid": True,
