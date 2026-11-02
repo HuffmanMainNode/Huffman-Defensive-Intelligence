@@ -70,3 +70,13 @@ HDI must not bypass that approval boundary or imply that the report itself was t
 - Cross-project end-to-end integration harness.
 
 The above are the next engineering tasks, not current capabilities.
+
+
+## Current HDI normalization entry points
+
+- `OIXAdapter.normalize_verified_envelope(...)` maps a bounded OIX envelope after the caller supplies all required verification outcomes. HDI does not perform cryptographic signature verification, trust-store lookup, recipient verification, or replay checks itself.
+- `OpenSwarmAdapter.normalize_platform_event(...)` preserves the upstream event source, classification, payload, evidence references, correlation ID, and causation ID.
+- `HalloweenOSINTAdapter.normalize_manifest(...)` validates the manifest file records and creates a deterministic event ID from the canonical manifest digest.
+- `CyberObservatoryAdapter.normalize_verified_evidence_submit(...)` accepts the Cyber evidence payload only with the same explicit OIX verification attestation and preserves artifact digest and sender provenance.
+
+These are in-process normalization functions. They are not network clients, do not open the upstream SQLite databases, and do not bypass the OIX inbox's pending-review state.
