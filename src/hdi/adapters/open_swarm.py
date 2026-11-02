@@ -1,8 +1,8 @@
-import json
-import sqlite3
 from contextlib import closing
 from dataclasses import dataclass
+import json
 from pathlib import Path
+import sqlite3
 
 from hdi.adapters.base import Adapter
 from hdi.model import EventValidationError, HDIEvent
