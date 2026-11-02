@@ -48,47 +48,77 @@ class SQLiteJournal:
         self.path = str(path)
         self._clock = clock
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
-            db.executescript("""
-                PRAGMA journal_mode=WAL;
-                PRAGMA synchronous=FULL;
-                CREATE TABLE IF NOT EXISTS events (
-                    event_id TEXT PRIMARY KEY,
-                    digest TEXT NOT NULL,
-                    event_json TEXT NOT NULL,
-                    created_at REAL NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS outbox (
-                    event_id TEXT PRIMARY KEY REFERENCES events(event_id),
-                    state TEXT NOT NULL CHECK(state IN ('pending','leased','delivered')),
-                    attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
-                    lease_owner TEXT,
-                    lease_until REAL,
-                    delivered_at REAL
-                );
-                CREATE INDEX IF NOT EXISTS idx_outbox_delivery
-                    ON outbox(state, lease_until, event_id);
-                CREATE TABLE IF NOT EXISTS oix_replay (
-                    sender TEXT NOT NULL,
-                    nonce TEXT NOT NULL,
-                    message_id TEXT NOT NULL UNIQUE REFERENCES events(event_id),
-                    envelope_sha256 TEXT NOT NULL,
-                    expires_at INTEGER NOT NULL,
-                    accepted_at REAL NOT NULL,
-                    PRIMARY KEY(sender, nonce)
-                );
-                CREATE TABLE IF NOT EXISTS source_offsets (
-                    source_id TEXT PRIMARY KEY,
-                    source_identity TEXT,
-                    last_sequence INTEGER NOT NULL CHECK(last_sequence >= 0),
-                    updated_at REAL NOT NULL
-                );
-            """)
-            columns = {
-                row["name"] for row in db.execute("PRAGMA table_info(source_offsets)")
-            }
-            if "source_identity" not in columns:
-                db.execute("ALTER TABLE source_offsets ADD COLUMN source_identity TEXT")
+        self._initialize()
+
+    def _initialize(self):
+        """Initialize schema safely when multiple local processes start together."""
+        deadline = time.monotonic() + 30.0
+        while True:
+            try:
+                with self._connect() as db:
+                    mode = db.execute("PRAGMA journal_mode").fetchone()[0]
+                    if mode.lower() != "wal":
+                        db.execute("PRAGMA journal_mode=WAL")
+                    db.execute("PRAGMA synchronous=FULL")
+                    db.execute("BEGIN IMMEDIATE")
+                    db.execute("""
+                        CREATE TABLE IF NOT EXISTS events (
+                            event_id TEXT PRIMARY KEY,
+                            digest TEXT NOT NULL,
+                            event_json TEXT NOT NULL,
+                            created_at REAL NOT NULL
+                        )
+                    """)
+                    db.execute("""
+                        CREATE TABLE IF NOT EXISTS outbox (
+                            event_id TEXT PRIMARY KEY REFERENCES events(event_id),
+                            state TEXT NOT NULL CHECK(state IN ('pending','leased','delivered')),
+                            attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+                            lease_owner TEXT,
+                            lease_until REAL,
+                            delivered_at REAL
+                        )
+                    """)
+                    db.execute("""
+                        CREATE INDEX IF NOT EXISTS idx_outbox_delivery
+                        ON outbox(state, lease_until, event_id)
+                    """)
+                    db.execute("""
+                        CREATE TABLE IF NOT EXISTS oix_replay (
+                            sender TEXT NOT NULL,
+                            nonce TEXT NOT NULL,
+                            message_id TEXT NOT NULL UNIQUE REFERENCES events(event_id),
+                            envelope_sha256 TEXT NOT NULL,
+                            expires_at INTEGER NOT NULL,
+                            accepted_at REAL NOT NULL,
+                            PRIMARY KEY(sender, nonce)
+                        )
+                    """)
+                    db.execute("""
+                        CREATE TABLE IF NOT EXISTS source_offsets (
+                            source_id TEXT PRIMARY KEY,
+                            source_identity TEXT,
+                            last_sequence INTEGER NOT NULL CHECK(last_sequence >= 0),
+                            updated_at REAL NOT NULL
+                        )
+                    """)
+                    columns = {
+                        row["name"] for row in db.execute("PRAGMA table_info(source_offsets)")
+                    }
+                    if "source_identity" not in columns:
+                        db.execute(
+                            "ALTER TABLE source_offsets ADD COLUMN source_identity TEXT"
+                        )
+                    db.commit()
+                return
+            except sqlite3.OperationalError as exc:
+                message = str(exc).lower()
+                if (
+                    ("locked" not in message and "busy" not in message)
+                    or time.monotonic() >= deadline
+                ):
+                    raise
+                time.sleep(0.05)
 
     @contextmanager
     def _connect(self):
@@ -97,6 +127,7 @@ class SQLiteJournal:
             db.row_factory = sqlite3.Row
             db.execute("PRAGMA foreign_keys=ON")
             db.execute("PRAGMA busy_timeout=10000")
+            db.execute("PRAGMA synchronous=FULL")
             yield db
         finally:
             db.close()

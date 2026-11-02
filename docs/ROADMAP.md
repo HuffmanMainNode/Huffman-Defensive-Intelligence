@@ -30,10 +30,10 @@
 
 ## Stage 3: integration validation
 - [x] Four-project in-process event journal conformance harness
-- [ ] Four-process local integration harness
+- [x] Four-process local integration harness (synthetic fixtures, local SQLite only)
 - [ ] Disconnect, duplicate, delay, malformed-event and clock-skew fault injection
 - [ ] Provenance-chain and conflicting-evidence tests
-- [ ] Reproducible demo with synthetic fixtures
+- [x] Reproducible four-process demo with synthetic fixtures
 
 ## Stage 4: deployment and review
 - [ ] Containerized local deployment
