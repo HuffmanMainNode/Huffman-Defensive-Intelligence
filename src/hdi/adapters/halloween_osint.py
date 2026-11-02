@@ -4,7 +4,8 @@ from pathlib import PurePosixPath
 from uuid import NAMESPACE_URL, uuid5
 
 from hdi.adapters.base import Adapter
-from hdi.model import EventValidationError, EvidenceReference, HASH, HDIEvent
+from hdi.model import HASH, EventValidationError, EvidenceReference, HDIEvent
+
 
 class HalloweenOSINTAdapter(Adapter):
     """Normalize a Halloween OSINT SHA-256 evidence manifest."""
