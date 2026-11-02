@@ -69,6 +69,9 @@ def test_halloween_manifest_normalization_is_deterministic():
     assert first.event_id == second.event_id
     assert first.evidence[0].sha256 == second.evidence[0].sha256
     assert first.payload["files"] == manifest["files"]
+    assert first.payload["root_path_redacted"] is True
+    assert first.payload["classification"] == "internal"
+    assert "root" not in first.payload
 
 
 def test_cyber_observatory_requires_verified_oix_submission():
@@ -96,3 +99,24 @@ def test_cyber_observatory_requires_verified_oix_submission():
     assert event.source_project == "cyber_observatory"
     assert event.evidence[0].sha256 == DIGEST
     assert event.payload["evidence_submission"]["evidence_type"] == "sbom_analysis"
+
+
+def test_oix_adapter_rejects_incorrect_envelope_digest():
+    envelope = {
+        "body": {
+            "protocol": "OIX", "version": "0.1", "message_id": "12345678-1234-1234-1234-123456789abc",
+            "sender": "fingerprint-demo", "recipient": "agent:receiver",
+            "type": "task.request", "issued_at": 1793620800, "expires_at": 1793621100,
+            "nonce": "n" * 24, "requested_capability": "public.research",
+            "payload": {"task": "summarize a public advisory"},
+        },
+        "signature": "verified-by-upstream",
+    }
+    try:
+        OIXAdapter().normalize_verified_envelope(
+            envelope, verification=VERIFIED, envelope_sha256=DIGEST
+        )
+    except EventValidationError:
+        pass
+    else:
+        raise AssertionError("incorrect envelope digest was accepted")
