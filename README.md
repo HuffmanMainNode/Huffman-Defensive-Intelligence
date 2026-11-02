@@ -51,3 +51,12 @@ HDI can now verify OIX v0.1 Ed25519 agent cards and message envelopes against a 
 The verified event is not accepted as durable until `SQLiteJournal.append_verified_oix(...)` atomically records the event, outbox item and sender/nonce replay key. See [Authenticated OIX Ingress](docs/OIX_AUTHENTICATED_INGRESS.md).
 
 This is an in-process authenticated ingress library path, not a network listener or automatic peer-discovery trust mechanism. HDI does not auto-trust keys supplied by an incoming card.
+
+
+## HDI 0.4.0: durable Open-Swarm consumer
+
+HDI now provides `ingest_open_swarm_batch(bus, journal, ...)` for the documented Open-Swarm `SQLiteEventBus` interface. It reads a bounded batch, validates and normalizes each PlatformEvent, appends it to the HDI SQLite journal, and only then acknowledges the upstream consumer sequence.
+
+If the process stops after the HDI append but before the Open-Swarm acknowledgement, the source redelivers the event and HDI's stable event ID plus canonical digest make the retry idempotent. Classification, source, evidence references, correlation ID and causation ID are preserved.
+
+This is an explicit local callable, not a background daemon. The operator must supply already-open bus and journal objects, use a stable consumer ID, and supervise one active poller for that consumer. It does not enable cross-host coordination or exactly-once processing. See [Open-Swarm Connector](docs/OPEN_SWARM_CONNECTOR.md).
