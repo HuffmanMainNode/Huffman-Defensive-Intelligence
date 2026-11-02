@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+- Added a read-only Open-Swarm SQLiteEventBus importer.
+- Added canonical source-row verification and schema fingerprint checks.
+- Added atomic source cursor advancement with normalized event/outbox persistence.
+- Added batch rollback, corruption, resume and symlink-path tests.
+
 ## 0.3.0
 - Added OIX v0.1 Ed25519 signed-agent-card and message-envelope verification.
 - Added operator-trusted peer-key matching and exact recipient/time-window checks.
