@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+- Added a four-project conformance harness covering OIX, Open-Swarm, Halloween OSINT and Cyber Observatory in one HDI journal.
+- Verified stable event identity, source classification/provenance preservation, OIX replay acceptance and idempotent repeated ingestion.
+- Confirmed all four project identities coexist in the local outbox without duplicate records on retry.
+
+
 ## 0.7.0
 - Added a verified OIX evidence.submit to Cyber Observatory ingestion path.
 - Persisted the original OIX envelope event and normalized Cyber evidence event under distinct deterministic IDs.
