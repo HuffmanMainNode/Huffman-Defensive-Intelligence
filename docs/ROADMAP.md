@@ -17,7 +17,8 @@
 - [ ] OIX authenticated transport
 - [x] Open-Swarm local read-only event import and explicit bus consumer callable
 - [ ] Supervised Open-Swarm background relay and remote transport
-- [ ] Halloween OSINT evidence-manifest connector
+- [x] Halloween OSINT bounded read-only manifest import
+- [ ] Evidence-file re-verification and source authenticity workflow
 - [ ] Cyber Observatory finding/SBOM/KEV connector
 - [ ] Retry, dead-letter and approval semantics
 
