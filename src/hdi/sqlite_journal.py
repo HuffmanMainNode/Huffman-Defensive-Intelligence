@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 import sqlite3
 import time
 import uuid
@@ -32,6 +33,7 @@ class Delivery:
     digest: str
     attempts: int
     lease_owner: str
+    lease_token: str
     lease_until: float
 
 
@@ -76,6 +78,7 @@ class SQLiteJournal:
                             attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
                             lease_owner TEXT,
                             lease_until REAL,
+                            lease_token TEXT,
                             delivered_at REAL
                         )
                     """)
@@ -109,6 +112,18 @@ class SQLiteJournal:
                         db.execute(
                             "ALTER TABLE source_offsets ADD COLUMN source_identity TEXT"
                         )
+                    outbox_columns = {
+                        row["name"] for row in db.execute("PRAGMA table_info(outbox)")
+                    }
+                    if "lease_token" not in outbox_columns:
+                        db.execute("ALTER TABLE outbox ADD COLUMN lease_token TEXT")
+                        # Invalidate legacy owner-only leases. They are safely
+                        # redelivered instead of accepting an unfenced ack.
+                        db.execute("""
+                            UPDATE outbox
+                            SET state='pending', lease_owner=NULL, lease_until=NULL
+                            WHERE state='leased' AND lease_token IS NULL
+                        """)
                     db.commit()
                 return
             except sqlite3.OperationalError as exc:
@@ -410,25 +425,40 @@ class SQLiteJournal:
                 db.commit()
                 return None
             lease_until = now + float(lease_seconds)
+            lease_token = uuid.uuid4().hex
             attempts = row["attempts"] + 1
             db.execute("""
                 UPDATE outbox
-                SET state='leased', attempts=?, lease_owner=?, lease_until=?
+                SET state='leased', attempts=?, lease_owner=?, lease_until=?, lease_token=?
                 WHERE event_id=?
-            """, (attempts, worker_id, lease_until, row["event_id"]))
+            """, (attempts, worker_id, lease_until, lease_token, row["event_id"]))
             db.commit()
         return Delivery(
             event=HDIEvent.from_dict(json.loads(row["event_json"])),
             event_id=row["event_id"], digest=row["digest"], attempts=attempts,
-            lease_owner=worker_id, lease_until=lease_until,
+            lease_owner=worker_id, lease_token=lease_token, lease_until=lease_until,
         )
 
-    def acknowledge(self, event_id: str, worker_id: str) -> bool:
-        """Mark a leased event delivered. Returns False for an already-delivered event."""
+    @staticmethod
+    def _require_active_lease(row, worker_id: str, lease_token: str, now: float):
+        if not isinstance(lease_token, str) or not re.fullmatch(r"[a-f0-9]{32}", lease_token):
+            raise LeaseError("a valid per-claim lease token is required")
+        if (
+            row["state"] != "leased"
+            or row["lease_owner"] != worker_id
+            or not secrets.compare_digest(row["lease_token"] or "", lease_token)
+            or row["lease_until"] is None
+            or row["lease_until"] <= now
+        ):
+            raise LeaseError("worker does not own the active, unexpired delivery lease")
+
+    def acknowledge(self, event_id: str, worker_id: str, lease_token: str) -> bool:
+        """Acknowledge only the exact, unexpired claim returned to this worker."""
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT state,lease_owner FROM outbox WHERE event_id=?", (event_id,)
+                "SELECT state,lease_owner,lease_until,lease_token FROM outbox WHERE event_id=?",
+                (event_id,),
             ).fetchone()
             if row is None:
                 db.rollback()
@@ -436,31 +466,29 @@ class SQLiteJournal:
             if row["state"] == "delivered":
                 db.commit()
                 return False
-            if row["state"] != "leased" or row["lease_owner"] != worker_id:
-                db.rollback()
-                raise LeaseError("worker does not own the active delivery lease")
+            self._require_active_lease(row, worker_id, lease_token, self._clock())
             db.execute("""
                 UPDATE outbox SET state='delivered', lease_owner=NULL,
-                    lease_until=NULL, delivered_at=? WHERE event_id=?
+                    lease_until=NULL, lease_token=NULL, delivered_at=? WHERE event_id=?
             """, (self._clock(), event_id))
             db.commit()
         return True
 
-    def release(self, event_id: str, worker_id: str) -> None:
-        """Return a leased event to pending after a transient delivery failure."""
+    def release(self, event_id: str, worker_id: str, lease_token: str) -> None:
+        """Release only the exact, unexpired claim returned to this worker."""
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT state,lease_owner FROM outbox WHERE event_id=?", (event_id,)
+                "SELECT state,lease_owner,lease_until,lease_token FROM outbox WHERE event_id=?",
+                (event_id,),
             ).fetchone()
             if row is None:
                 db.rollback()
                 raise KeyError(event_id)
-            if row["state"] != "leased" or row["lease_owner"] != worker_id:
-                db.rollback()
-                raise LeaseError("worker does not own the active delivery lease")
+            self._require_active_lease(row, worker_id, lease_token, self._clock())
             db.execute("""
-                UPDATE outbox SET state='pending', lease_owner=NULL, lease_until=NULL
+                UPDATE outbox SET state='pending', lease_owner=NULL,
+                    lease_until=NULL, lease_token=NULL
                 WHERE event_id=?
             """, (event_id,))
             db.commit()
