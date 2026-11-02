@@ -79,10 +79,16 @@ class SQLiteJournal:
                 );
                 CREATE TABLE IF NOT EXISTS source_offsets (
                     source_id TEXT PRIMARY KEY,
+                    source_identity TEXT,
                     last_sequence INTEGER NOT NULL CHECK(last_sequence >= 0),
                     updated_at REAL NOT NULL
                 );
             """)
+            columns = {
+                row["name"] for row in db.execute("PRAGMA table_info(source_offsets)")
+            }
+            if "source_identity" not in columns:
+                db.execute("ALTER TABLE source_offsets ADD COLUMN source_identity TEXT")
 
     @contextmanager
     def _connect(self):
@@ -239,17 +245,23 @@ class SQLiteJournal:
         return digest
 
 
-    def source_offset(self, source_id: str) -> int:
+    def source_offset(self, source_id: str, *, source_identity: str | None = None) -> int:
         if not isinstance(source_id, str) or not source_id.strip() or len(source_id) > 128:
             raise ValueError("source_id must contain 1 to 128 characters")
         with self._connect() as db:
             row = db.execute(
-                "SELECT last_sequence FROM source_offsets WHERE source_id=?", (source_id,)
+                "SELECT last_sequence,source_identity FROM source_offsets WHERE source_id=?",
+                (source_id,),
             ).fetchone()
-        return int(row["last_sequence"]) if row else 0
+        if row is None:
+            return 0
+        if source_identity is not None and row["source_identity"] not in (None, source_identity):
+            raise ValueError("source_id is already bound to a different source identity")
+        return int(row["last_sequence"])
 
     def append_batch_with_offset(
-        self, events: list[HDIEvent], *, source_id: str, last_sequence: int
+        self, events: list[HDIEvent], *, source_id: str, last_sequence: int,
+        source_identity: str | None = None,
     ) -> list[str]:
         """Atomically append a source batch and advance its durable import cursor.
 
@@ -259,6 +271,11 @@ class SQLiteJournal:
         """
         if not isinstance(source_id, str) or not source_id.strip() or len(source_id) > 128:
             raise ValueError("source_id must contain 1 to 128 characters")
+        if source_identity is not None and (
+            not isinstance(source_identity, str) or not source_identity.strip()
+            or len(source_identity) > 2048
+        ):
+            raise ValueError("source_identity must contain 1 to 2048 characters")
         if (
             not isinstance(last_sequence, int) or isinstance(last_sequence, bool)
             or last_sequence < 1
@@ -280,9 +297,16 @@ class SQLiteJournal:
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             current = db.execute(
-                "SELECT last_sequence FROM source_offsets WHERE source_id=?", (source_id,)
+                "SELECT last_sequence,source_identity FROM source_offsets WHERE source_id=?",
+                (source_id,),
             ).fetchone()
             current_sequence = int(current["last_sequence"]) if current else 0
+            if (
+                current is not None and source_identity is not None
+                and current["source_identity"] not in (None, source_identity)
+            ):
+                db.rollback()
+                raise ValueError("source_id is already bound to a different source identity")
             if last_sequence < current_sequence:
                 db.rollback()
                 raise ValueError("source cursor cannot move backwards")
@@ -308,10 +332,12 @@ class SQLiteJournal:
                 )
                 digests.append(digest)
             db.execute(
-                """INSERT INTO source_offsets(source_id,last_sequence,updated_at)
-                   VALUES(?,?,?) ON CONFLICT(source_id) DO UPDATE SET
+                """INSERT INTO source_offsets(
+                       source_id,source_identity,last_sequence,updated_at
+                   ) VALUES(?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET
+                   source_identity=COALESCE(source_offsets.source_identity,excluded.source_identity),
                    last_sequence=excluded.last_sequence,updated_at=excluded.updated_at""",
-                (source_id, last_sequence, now),
+                (source_id, source_identity, last_sequence, now),
             )
             db.commit()
         return digests
