@@ -7,6 +7,7 @@ proof or a substitute for the authenticated OIX ingress workflow.
 import argparse
 import json
 import multiprocessing
+import sqlite3
 import tempfile
 import uuid
 from pathlib import Path
@@ -108,7 +109,7 @@ def _append_worker(database, event_data, result_queue):
             "event_id": event.event_id,
             "sha256": digest,
         })
-    except Exception as exc:
+    except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
         result_queue.put({
             "ok": False,
             "error_type": type(exc).__name__,
