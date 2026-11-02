@@ -96,3 +96,10 @@ This does not yet provide a network listener, automatic OIX trust-store synchron
 HDI 0.5.0 adds `OpenSwarmSQLiteImporter` for local source database import. It opens the upstream SQLite file with `mode=ro` and `query_only`, validates the expected `platform_events` schema, canonical event bytes, indexed column consistency and normalized event contract. It commits normalized events, outbox rows and a source-specific sequence cursor atomically in the HDI target journal.
 
 The importer does not mutate source events, consumer offsets or outbox state. It is a local pull mechanism and not a daemon or network connector. See `docs/OPEN_SWARM_IMPORT.md`.
+
+
+## Halloween OSINT manifest importer implementation
+
+HDI 0.6.0 adds `HalloweenManifestImporter` for bounded read-only ingestion of the upstream evidence-manifest v1.0 JSON format. It rejects duplicate JSON object keys, invalid UTF-8, oversized files, symlinked manifest paths, non-canonical relative file paths and duplicate file records. It preserves the manifest digest and file records while redacting the source root path from the normalized event.
+
+The importer reads only the manifest file. It does not follow the root path, read evidence files or recalculate their hashes. Byte-level evidence verification remains the responsibility of the upstream Halloween OSINT verifier. See `docs/HALLOWEEN_MANIFEST_IMPORT.md`.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+- Added a bounded, read-only Halloween OSINT manifest importer.
+- Rejected duplicate JSON keys, oversized files, symlinked manifest paths and unsafe/duplicate evidence paths.
+- Preserved manifest and per-file SHA-256 provenance while redacting the source root path.
+- Added deterministic idempotent journal import and security-focused tests.
+
+
 ## 0.5.0
 - Added a read-only Open-Swarm SQLite event importer with source schema and canonical-row integrity checks.
 - Added atomic source cursor, event and outbox persistence with resume and conflict rollback.
