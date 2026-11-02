@@ -7,7 +7,7 @@
 - [x] CLI validation, tests and CI
 
 ## Stage 1: contract maturity
-- [ ] Stable schema and compatibility policy
+- [ ] Stable schema and compatibility policy\n- [ ] User-facing diagnostic command for local connector prerequisites
 - [x] OIX v0.1 Ed25519 signature and operator-trusted peer verification
 - [x] Idempotency and replay test vectors
 - [ ] Journal crash-recovery and concurrent-writer tests
