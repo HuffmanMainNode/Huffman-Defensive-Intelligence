@@ -9,8 +9,6 @@ from hdi.model import HDIEvent
 from hdi.sqlite_journal import EventConflictError, LeaseError, SQLiteJournal
 
 
-
-
 def _append_in_process(args):
     database, event_data = args
     journal = SQLiteJournal(database)
