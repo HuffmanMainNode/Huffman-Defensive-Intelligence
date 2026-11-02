@@ -73,7 +73,7 @@ class CyberObservatoryAdapter(Adapter):
             if not isinstance(value, str) or not value or len(value) > 64:
                 raise EventValidationError(f"{field} must be an RFC 3339 timestamp")
             try:
-                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                parsed = datetime.fromisoformat(value)
                 if parsed.tzinfo is None:
                     raise ValueError("timezone required")
             except ValueError as exc:
