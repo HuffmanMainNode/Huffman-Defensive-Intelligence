@@ -1,6 +1,6 @@
 # Cyber Observatory verified evidence ingress
 
-HDI 0.7.0 connects Cyber Observatory's metadata-only OIX evidence bridge to the HDI event journal.
+HDI 0.8.1 connects Cyber Observatory's metadata-only OIX evidence bridge to the HDI event journal.
 
 ## Usage
 
@@ -25,15 +25,17 @@ The caller must obtain `trusted_peer_public_key` from an operator-controlled OIX
 ## Verification and persistence order
 
 1. Verify the signed agent card and exact peer key against the operator-trusted key.
-2. Verify the OIX envelope signature, recipient, timestamp, TTL, message ID and nonce.
+2. Verify the OIX envelope signature, recipient, timestamp, validity window, message ID and nonce.
 3. Require the OIX message type to be `evidence.submit`.
-4. Validate the strict Cyber evidence payload, including evidence type, classification, status, artifact digest, collector/method metadata and explicit limitations.
-5. Construct the normalized Cyber evidence event in memory using a deterministic ID distinct from the OIX message ID.
-6. Call the atomic OIX replay acceptance operation. It persists the original OIX event, outbox record and sender/nonce replay record together.
+4. Confirm that the supplied OIX inbox still trusts the sender's exact public key.
+5. Read the durable OIX work record and require `status=approved`, `work_type=evidence.submit`, and exact sender, message ID and payload matches. Pending, rejected, unknown or mismatched records are refused.
+6. Validate the Cyber evidence payload against the upstream bounds for HTTPS source URI, timezone-aware timestamps, collector/method fields, artifact size and media type, deterministic summary JSON and explicit limitations.
+7. Construct the normalized Cyber evidence event in memory using a deterministic ID distinct from the OIX message ID.
+8. Call the atomic OIX replay acceptance operation. It persists the original OIX event, outbox record and sender/nonce replay record together.
 9. Append the normalized Cyber evidence event to the HDI journal.
 
-If the process stops after step 6 but before step 7, a redelivery of the same signed message passes the idempotent replay check and can complete the normalized append. Invalid evidence payloads are rejected before the replay acceptance step.
-
+If the process stops after step 8 but before step 9, a redelivery of the same signed message passes the idempotent replay check and can complete the normalized append. Invalid evidence payloads and unapproved work are rejected before replay acceptance.
+ 
 ## Provenance
 
 Two records are retained:
