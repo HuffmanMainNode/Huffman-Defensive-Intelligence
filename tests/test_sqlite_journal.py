@@ -72,3 +72,31 @@ def test_unknown_event_acknowledgement_fails(tmp_path):
     journal = SQLiteJournal(tmp_path / "hdi.sqlite")
     with pytest.raises(KeyError):
         journal.acknowledge("missing-event", "worker-a")
+
+
+def test_separate_journal_instances_share_idempotency_and_leases(tmp_path):
+    database = tmp_path / "shared.sqlite"
+    first = SQLiteJournal(database)
+    second = SQLiteJournal(database)
+    event = sample_event()
+    assert first.append(event) == second.append(event)
+    claim = first.claim_next("worker-a")
+    assert claim is not None
+    assert second.claim_next("worker-b") is None
+    with pytest.raises(LeaseError):
+        second.release(event.event_id, "worker-b")
+    second.acknowledge(event.event_id, "worker-a")
+    assert first.outbox_counts()["delivered"] == 1
+
+
+def test_lease_expiry_can_be_reclaimed_after_worker_restart(tmp_path):
+    now = [50.0]
+    first = SQLiteJournal(tmp_path / "shared.sqlite", clock=lambda: now[0])
+    event = sample_event()
+    first.append(event)
+    assert first.claim_next("worker-before-crash", lease_seconds=5) is not None
+    now[0] = 56.0
+    restarted = SQLiteJournal(tmp_path / "shared.sqlite", clock=lambda: now[0])
+    recovered = restarted.claim_next("worker-after-restart", lease_seconds=5)
+    assert recovered is not None
+    assert recovered.attempts == 2
