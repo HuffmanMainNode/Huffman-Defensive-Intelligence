@@ -1,17 +1,12 @@
-"""SQLite-backed idempotent event journal and leased delivery outbox.
-
-This is a single-host durability primitive. SQLite serializes writers; it is not a
-distributed consensus protocol or a multi-host message broker.
-"""
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 import json
 from pathlib import Path
 import sqlite3
 import time
-from typing import Callable, Iterator
 
 from hdi.model import HDIEvent
 
@@ -131,7 +126,7 @@ class SQLiteJournal:
         if not isinstance(worker_id, str) or not worker_id.strip() or len(worker_id) > 128:
             raise ValueError("worker_id must be a non-empty string of at most 128 characters")
         if not isinstance(lease_seconds, (int, float)) or isinstance(lease_seconds, bool):
-            raise ValueError("lease_seconds must be a positive number")
+            raise TypeError("lease_seconds must be a number")
         if lease_seconds <= 0:
             raise ValueError("lease_seconds must be a positive number")
         now = self._clock()
