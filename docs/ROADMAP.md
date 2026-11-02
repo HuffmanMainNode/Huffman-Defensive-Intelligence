@@ -26,7 +26,8 @@
 - [ ] Evidence-file re-verification and source authenticity workflow
 - [x] Verified OIX evidence.submit ingestion for Cyber Observatory metadata
 - [ ] Direct Cyber Observatory report/SBOM import and review workflow
-- [ ] Retry, dead-letter and approval semantics
+- [ ] Dead-letter policy and bounded retry/backoff semantics
+- [x] At-least-once outbox claims, lease expiry/redelivery, explicit release, and per-claim fencing-token acknowledgement
 
 ## Stage 3: integration validation
 - [x] Four-project in-process event journal conformance harness
