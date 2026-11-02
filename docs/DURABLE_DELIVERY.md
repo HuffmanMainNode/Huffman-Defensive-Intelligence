@@ -14,7 +14,7 @@ HDI 0.2 adds an optional SQLite-backed journal alongside the original JSONL refe
 ## Minimal usage
 
 ```python
-from hdi.journal import SQLiteJournal
+from hdi.sqlite_journal import SQLiteJournal
 
 journal = SQLiteJournal("./state/hdi.sqlite")
 journal.append(event)
