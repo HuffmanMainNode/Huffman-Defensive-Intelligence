@@ -77,6 +77,11 @@ class SQLiteJournal:
                     accepted_at REAL NOT NULL,
                     PRIMARY KEY(sender, nonce)
                 );
+                CREATE TABLE IF NOT EXISTS source_offsets (
+                    source_id TEXT PRIMARY KEY,
+                    last_sequence INTEGER NOT NULL CHECK(last_sequence >= 0),
+                    updated_at REAL NOT NULL
+                );
             """)
 
     @contextmanager
@@ -232,6 +237,84 @@ class SQLiteJournal:
             )
             db.commit()
         return digest
+
+
+    def source_offset(self, source_id: str) -> int:
+        if not isinstance(source_id, str) or not source_id.strip() or len(source_id) > 128:
+            raise ValueError("source_id must contain 1 to 128 characters")
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT last_sequence FROM source_offsets WHERE source_id=?", (source_id,)
+            ).fetchone()
+        return int(row["last_sequence"]) if row else 0
+
+    def append_batch_with_offset(
+        self, events: list[HDIEvent], *, source_id: str, last_sequence: int
+    ) -> list[str]:
+        """Atomically append a source batch and advance its durable import cursor.
+
+        Repeated event IDs with identical canonical content are idempotent. The
+        source cursor advances in the same transaction as event/outbox writes,
+        so a crash cannot move the cursor past an event that was not persisted.
+        """
+        if not isinstance(source_id, str) or not source_id.strip() or len(source_id) > 128:
+            raise ValueError("source_id must contain 1 to 128 characters")
+        if (
+            not isinstance(last_sequence, int) or isinstance(last_sequence, bool)
+            or last_sequence < 1
+        ):
+            raise ValueError("last_sequence must be a positive integer")
+        if not isinstance(events, list) or not events:
+            raise ValueError("events must be a non-empty list")
+        prepared = []
+        for event in events:
+            event.validate()
+            digest = event.canonical_sha256()
+            encoded = json.dumps(
+                event.to_dict(), sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False
+            )
+            prepared.append((event, digest, encoded))
+        now = self._clock()
+        digests = []
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            current = db.execute(
+                "SELECT last_sequence FROM source_offsets WHERE source_id=?", (source_id,)
+            ).fetchone()
+            current_sequence = int(current["last_sequence"]) if current else 0
+            if last_sequence < current_sequence:
+                db.rollback()
+                raise ValueError("source cursor cannot move backwards")
+            for event, digest, encoded in prepared:
+                existing = db.execute(
+                    "SELECT digest FROM events WHERE event_id=?", (event.event_id,)
+                ).fetchone()
+                if existing is not None:
+                    if existing["digest"] != digest:
+                        db.rollback()
+                        raise EventConflictError(
+                            f"event_id {event.event_id!r} already exists with different content"
+                        )
+                    digests.append(digest)
+                    continue
+                db.execute(
+                    "INSERT INTO events(event_id,digest,event_json,created_at) VALUES(?,?,?,?)",
+                    (event.event_id, digest, encoded, now),
+                )
+                db.execute(
+                    "INSERT INTO outbox(event_id,state,attempts) VALUES(?,'pending',0)",
+                    (event.event_id,),
+                )
+                digests.append(digest)
+            db.execute(
+                """INSERT INTO source_offsets(source_id,last_sequence,updated_at)
+                   VALUES(?,?,?) ON CONFLICT(source_id) DO UPDATE SET
+                   last_sequence=excluded.last_sequence,updated_at=excluded.updated_at""",
+                (source_id, last_sequence, now),
+            )
+            db.commit()
+        return digests
 
     def get(self, event_id: str) -> HDIEvent | None:
         with self._connect() as db:
