@@ -58,3 +58,33 @@ class OpenSwarmAdapter(Adapter):
         )
         event.validate()
         return event
+
+
+def ingest_open_swarm_batch(bus, journal, *, consumer_id="hdi-open-swarm", limit=100):
+    """Durably ingest one Open-Swarm consumer batch into the HDI journal.
+
+    The source consumer offset advances only after HDI append succeeds. If the
+    process stops between append and acknowledgement, the source redelivers and
+    HDI's event-ID/digest idempotency makes the retry safe.
+
+    This is a local Python integration over the documented SQLiteEventBus
+    interface. It does not open another repository's database automatically,
+    start a background worker, or provide cross-host coordination.
+    """
+    if not isinstance(consumer_id, str) or not consumer_id.strip() or len(consumer_id) > 128:
+        raise ValueError("consumer_id must contain 1 to 128 characters")
+    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 1000:
+        raise ValueError("limit must be an integer between 1 and 1000")
+    records = bus.read(consumer_id, limit=limit)
+    accepted = []
+    for record in records:
+        raw_event = record.event.to_dict()
+        normalized = OpenSwarmAdapter().normalize_platform_event(raw_event)
+        digest = journal.append(normalized)
+        bus.acknowledge(consumer_id, record.sequence)
+        accepted.append({
+            "event_id": normalized.event_id,
+            "sequence": record.sequence,
+            "digest": digest,
+        })
+    return accepted
