@@ -42,3 +42,12 @@ See [Upstream Integration Contract](docs/INTEGRATION_CONTRACT.md) for field-leve
 The optional `SQLiteJournal` adds atomic event-plus-outbox persistence, idempotent append by event ID and canonical digest, lease-based worker claims, lease expiry/redelivery, acknowledgement and explicit release. See [Durable Delivery](docs/DURABLE_DELIVERY.md).
 
 This is a single-host SQLite primitive with at-least-once delivery semantics. It is not a multi-host broker, distributed consensus system, or exactly-once execution engine. External consumers must use stable idempotency keys.
+
+
+## HDI 0.3.0: authenticated OIX ingress
+
+HDI can now verify OIX v0.1 Ed25519 agent cards and message envelopes against a public key supplied by an operator-controlled trust store. It checks the card signature, peer fingerprint, envelope signature, exact recipient, message validity window, canonical UUID, nonce shape and restricted canonical JSON format.
+
+The verified event is not accepted as durable until `SQLiteJournal.append_verified_oix(...)` atomically records the event, outbox item and sender/nonce replay key. See [Authenticated OIX Ingress](docs/OIX_AUTHENTICATED_INGRESS.md).
+
+This is an in-process authenticated ingress library path, not a network listener or automatic peer-discovery trust mechanism. HDI does not auto-trust keys supplied by an incoming card.

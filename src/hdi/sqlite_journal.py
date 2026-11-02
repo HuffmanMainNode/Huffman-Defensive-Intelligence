@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
+import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from hdi.model import HDIEvent
+from hdi.model import HASH, HDIEvent
 
 
 class EventConflictError(ValueError):
@@ -17,6 +19,10 @@ class EventConflictError(ValueError):
 
 class LeaseError(ValueError):
     """A delivery operation does not own the active lease."""
+
+
+class ReplayDetectedError(ValueError):
+    """An OIX sender reused a nonce or message ID."""
 
 
 @dataclass(frozen=True)
@@ -62,6 +68,15 @@ class SQLiteJournal:
                 );
                 CREATE INDEX IF NOT EXISTS idx_outbox_delivery
                     ON outbox(state, lease_until, event_id);
+                CREATE TABLE IF NOT EXISTS oix_replay (
+                    sender TEXT NOT NULL,
+                    nonce TEXT NOT NULL,
+                    message_id TEXT NOT NULL UNIQUE REFERENCES events(event_id),
+                    envelope_sha256 TEXT NOT NULL,
+                    expires_at INTEGER NOT NULL,
+                    accepted_at REAL NOT NULL,
+                    PRIMARY KEY(sender, nonce)
+                );
             """)
 
     @contextmanager
@@ -103,6 +118,117 @@ class SQLiteJournal:
             db.execute(
                 "INSERT INTO outbox(event_id,state,attempts) VALUES(?,'pending',0)",
                 (event.event_id,),
+            )
+            db.commit()
+        return digest
+
+
+    def append_verified_oix(
+        self,
+        event: HDIEvent,
+        *,
+        sender: str,
+        nonce: str,
+        envelope_sha256: str,
+        expires_at: int,
+    ) -> str:
+        """Atomically persist a cryptographically verified OIX event and replay key.
+
+        The caller must use OIXAdapter.verify_and_normalize_envelope with a peer
+        key resolved from an operator-controlled trust store. This method makes
+        the nonce/message-ID replay decision durable in the same transaction as
+        event and outbox insertion.
+        """
+        event.validate()
+        if event.source_project != "oix":
+            raise ValueError("append_verified_oix accepts only OIX events")
+        if not isinstance(sender, str) or not re.fullmatch(r"ed25519:[a-f0-9]{64}", sender):
+            raise ValueError("sender must be an OIX Ed25519 fingerprint")
+        if not isinstance(nonce, str) or not 20 <= len(nonce) <= 128:
+            raise ValueError("nonce must contain 20 to 128 characters")
+        if not isinstance(envelope_sha256, str) or not HASH.fullmatch(envelope_sha256):
+            raise ValueError("envelope_sha256 must be lowercase SHA-256")
+        if not isinstance(expires_at, int) or isinstance(expires_at, bool) or expires_at < 1:
+            raise ValueError("expires_at must be a positive integer Unix timestamp")
+        try:
+            if str(uuid.UUID(event.event_id)) != event.event_id:
+                raise ValueError
+        except (ValueError, AttributeError) as exc:
+            raise ValueError("OIX event_id must be a canonical UUID") from exc
+        if (
+            event.payload.get("sender_fingerprint") != sender
+            or event.payload.get("envelope_sha256") != envelope_sha256
+        ):
+            raise ValueError("OIX event provenance does not match replay metadata")
+        checks = event.payload.get("verification")
+        required = ("signature_valid", "sender_trusted", "recipient_valid", "payload_schema_valid")
+        if not isinstance(checks, dict) or any(checks.get(key) is not True for key in required):
+            raise ValueError("OIX event lacks cryptographic and trust verification")
+        payload = dict(event.payload)
+        payload["verification"] = {**checks, "replay_checked": True}
+        accepted_event = HDIEvent(
+            event_id=event.event_id,
+            event_type=event.event_type,
+            source_project=event.source_project,
+            occurred_at=event.occurred_at,
+            payload=payload,
+            evidence=event.evidence,
+            schema_version=event.schema_version,
+            correlation_id=event.correlation_id,
+        )
+        accepted_event.validate()
+        digest = accepted_event.canonical_sha256()
+        encoded = json.dumps(
+            accepted_event.to_dict(), sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False
+        )
+        now = self._clock()
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            prior = db.execute(
+                "SELECT message_id,envelope_sha256 FROM oix_replay WHERE sender=? AND nonce=?",
+                (sender, nonce),
+            ).fetchone()
+            if prior is not None:
+                existing = db.execute(
+                    "SELECT digest FROM events WHERE event_id=?", (prior["message_id"],)
+                ).fetchone()
+                if (
+                    prior["message_id"] == accepted_event.event_id
+                    and prior["envelope_sha256"] == envelope_sha256
+                    and existing is not None
+                    and existing["digest"] == digest
+                ):
+                    db.commit()
+                    return digest
+                db.rollback()
+                raise ReplayDetectedError("OIX sender reused a previously accepted nonce")
+            prior_message = db.execute(
+                "SELECT nonce,envelope_sha256 FROM oix_replay WHERE sender=? AND message_id=?",
+                (sender, accepted_event.event_id),
+            ).fetchone()
+            if prior_message is not None:
+                db.rollback()
+                raise ReplayDetectedError("OIX sender reused a previously accepted message ID")
+            existing_event = db.execute(
+                "SELECT digest FROM events WHERE event_id=?", (accepted_event.event_id,)
+            ).fetchone()
+            if existing_event is not None:
+                db.rollback()
+                raise EventConflictError("OIX message ID already exists outside replay acceptance")
+            db.execute(
+                "INSERT INTO events(event_id,digest,event_json,created_at) VALUES(?,?,?,?)",
+                (accepted_event.event_id, digest, encoded, now),
+            )
+            db.execute(
+                "INSERT INTO outbox(event_id,state,attempts) VALUES(?,'pending',0)",
+                (accepted_event.event_id,),
+            )
+            db.execute(
+                """INSERT INTO oix_replay(
+                    sender,nonce,message_id,envelope_sha256,expires_at,accepted_at
+                ) VALUES(?,?,?,?,?,?)""",
+                (sender, nonce, accepted_event.event_id, envelope_sha256, expires_at, now),
             )
             db.commit()
         return digest

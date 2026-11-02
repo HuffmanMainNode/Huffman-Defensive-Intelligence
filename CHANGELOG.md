@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+- Added OIX v0.1 Ed25519 signed-agent-card and message-envelope verification.
+- Added operator-trusted peer-key matching and exact recipient/time-window checks.
+- Added atomic SQLite sender/nonce and message-ID replay acceptance with event/outbox writes.
+- Added authenticated-ingress and durable replay test coverage.
+
 ## 0.2.0
 - Added a transactional SQLite event journal and leased delivery outbox.
 - Added idempotent event insertion and conflicting event-ID detection.

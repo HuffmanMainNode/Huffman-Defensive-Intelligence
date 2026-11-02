@@ -80,3 +80,12 @@ The above are the next engineering tasks, not current capabilities.
 - `CyberObservatoryAdapter.normalize_verified_evidence_submit(...)` accepts the Cyber evidence payload only with the same explicit OIX verification attestation and preserves artifact digest and sender provenance.
 
 These are in-process normalization functions. They are not network clients, do not open the upstream SQLite databases, and do not bypass the OIX inbox's pending-review state.
+
+
+## Authenticated OIX ingress implementation
+
+HDI 0.3.0 implements an in-process OIX v0.1 verification path using Ed25519 and the upstream restricted canonical JSON format. The caller must supply the peer public key obtained from an operator-controlled trust store. The signed card's public key must exactly match that trusted key; a self-signed card is not a trust grant.
+
+After verification, `SQLiteJournal.append_verified_oix` atomically writes the HDI event, outbox row and sender/nonce replay record. Repeated identical deliveries are idempotent. Reused sender nonces or message IDs are rejected. Replay records are retained in the local database; do not delete them while messages may be replayed.
+
+This does not yet provide a network listener, automatic OIX trust-store synchronization, peer-key revocation propagation, or multi-host replay consensus.
