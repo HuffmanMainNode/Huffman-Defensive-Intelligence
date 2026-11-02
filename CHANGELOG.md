@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1
+- Closed the Cyber evidence-ingress approval gap: HDI now requires a matching, durably approved OIX inbox work item before journal ingestion.
+- Added OIX inbox lookup of durable work decisions and current trusted peer keys.
+- Aligned Cyber evidence validation with upstream OIX URI, timestamp, MIME, size, summary and limitation bounds.
+- Added pending/rejected/mismatched approval tests and crash recovery after OIX replay acceptance.
+
+
 ## 0.8.0
 - Added a four-project conformance harness covering OIX, Open-Swarm, Halloween OSINT and Cyber Observatory in one HDI journal.
 - Verified stable event identity, source classification/provenance preservation, OIX replay acceptance and idempotent repeated ingestion.
