@@ -1,8 +1,10 @@
 import re
+from datetime import datetime
+from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid5
 
 from hdi.adapters.base import Adapter
-from hdi.adapters.oix import OIXAdapter
+from hdi.adapters.oix import OIXAdapter, canonical_oix_json
 from hdi.model import HASH, EventValidationError, EvidenceReference, HDIEvent
 
 CLASSIFICATIONS = {"public", "internal", "restricted"}
@@ -55,20 +57,45 @@ class CyberObservatoryAdapter(Adapter):
             raise EventValidationError("invalid evidence classification or status")
         for label in ("collector", "method"):
             value = payload[label]
-            if (not isinstance(value, dict) or set(value) != {"name", "version"}
-                    or not isinstance(value["name"], str) or not value["name"].strip()
-                    or not isinstance(value["version"], str) or not value["version"].strip()):
-                raise EventValidationError(f"{label} must contain non-empty name and version")
-        if (not isinstance(payload["summary"], dict) or not payload["summary"]
-                or len(payload["summary"]) > 64
-                or not isinstance(payload["limitations"], list)
-                or len(payload["limitations"]) > 32):
-            raise EventValidationError("summary and limitations have invalid types or sizes")
-        if not payload["limitations"] or any(
-            not isinstance(item, str) or not item.strip() or len(item) > 512
-            for item in payload["limitations"]
+            if (
+                not isinstance(value, dict)
+                or set(value) != {"name", "version"}
+                or not isinstance(value.get("name"), str)
+                or not 1 <= len(value["name"].strip()) <= 128
+                or not isinstance(value.get("version"), str)
+                or not 1 <= len(value["version"].strip()) <= 32
+            ):
+                raise EventValidationError(f"{label} must contain bounded name and version fields")
+        for field, nullable in (("source_timestamp", True), ("collected_at", False)):
+            value = payload[field]
+            if nullable and value is None:
+                continue
+            if not isinstance(value, str) or not value or len(value) > 64:
+                raise EventValidationError(f"{field} must be an RFC 3339 timestamp")
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    raise ValueError("timezone required")
+            except ValueError as exc:
+                raise EventValidationError(
+                    f"{field} must be an RFC 3339 timestamp with timezone"
+                ) from exc
+        if not isinstance(payload["summary"], dict) or not 1 <= len(payload["summary"]) <= 64:
+            raise EventValidationError("summary must be an object with 1 to 64 properties")
+        try:
+            if len(canonical_oix_json(payload["summary"])) > 32_768:
+                raise EventValidationError("summary exceeds 32768 bytes")
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise EventValidationError("summary must contain deterministic JSON values") from exc
+        if (
+            not isinstance(payload["limitations"], list)
+            or not 1 <= len(payload["limitations"]) <= 32
+            or any(
+                not isinstance(item, str) or not 1 <= len(item) <= 512
+                for item in payload["limitations"]
+            )
         ):
-            raise EventValidationError("evidence limitations must be explicit")
+            raise EventValidationError("evidence limitations must contain 1 to 32 bounded strings")
         artifact = payload["artifact"]
         if (not isinstance(artifact, dict)
                 or set(artifact) != {"sha256", "size_bytes", "media_type"}
@@ -76,19 +103,41 @@ class CyberObservatoryAdapter(Adapter):
                 or not HASH.fullmatch(artifact["sha256"])):
             raise EventValidationError("artifact SHA-256 is invalid")
         size = artifact.get("size_bytes")
-        if not isinstance(size, int) or isinstance(size, bool) or size < 0:
-            raise EventValidationError("artifact size_bytes must be a non-negative integer")
-        if not isinstance(artifact.get("media_type"), str) or not artifact["media_type"]:
-            raise EventValidationError("artifact media_type is required")
-        if not isinstance(sender_fingerprint, str) or not sender_fingerprint:
-            raise EventValidationError("verified sender fingerprint is required")
+        if (
+            not isinstance(size, int) or isinstance(size, bool)
+            or not 0 <= size <= 1_000_000_000_000
+        ):
+            raise EventValidationError("artifact size_bytes must be a bounded non-negative integer")
+        media_type = artifact.get("media_type")
+        if (
+            not isinstance(media_type, str) or "/" not in media_type
+            or any(char.isspace() for char in media_type) or len(media_type) > 128
+        ):
+            raise EventValidationError("artifact media_type must be a bounded MIME type")
+        if not isinstance(sender_fingerprint, str) or not re.fullmatch(
+            r"ed25519:[a-f0-9]{64}", sender_fingerprint
+        ):
+            raise EventValidationError("verified sender fingerprint is invalid")
         if not isinstance(envelope_sha256, str) or not HASH.fullmatch(envelope_sha256):
             raise EventValidationError("envelope_sha256 must be lowercase SHA-256")
-        if payload["source_uri"] is not None and (
-            not isinstance(payload["source_uri"], str)
-            or not payload["source_uri"].startswith("https://")
-        ):
-            raise EventValidationError("source_uri must be HTTPS or null")
+        source_uri = payload["source_uri"]
+        if source_uri is not None:
+            if not isinstance(source_uri, str) or len(source_uri) > 2048:
+                raise EventValidationError("source_uri must be null or a bounded HTTPS URL")
+            try:
+                parsed_uri = urlsplit(source_uri)
+                hostname = parsed_uri.hostname
+                _ = parsed_uri.port
+            except ValueError as exc:
+                raise EventValidationError("source_uri is malformed") from exc
+            if (
+                parsed_uri.scheme != "https" or not hostname
+                or parsed_uri.username is not None or parsed_uri.password is not None
+                or any(char.isspace() for char in source_uri)
+            ):
+                raise EventValidationError(
+                    "source_uri must be an HTTPS URL without embedded credentials"
+                )
         evidence_id = payload["evidence_id"]
         if not isinstance(evidence_id, str) or not re.fullmatch(
             r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", evidence_id
