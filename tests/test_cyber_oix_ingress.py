@@ -78,13 +78,45 @@ def make_envelope(private, sender, payload, *, message_type="evidence.submit",
     return {"body": body, "signature": b64url(private.sign(canonical_oix_json(body)))}
 
 
-def ingest(envelope, public, card, journal, *, now=1100):
+class ApprovedInboxFixture:
+    def __init__(self, envelope, public, *, status="approved", overrides=None):
+        self.sender = envelope["body"]["sender"]
+        self.public = public
+        self.work = {
+            "work_id": "work-fixture-001",
+            "sender": self.sender,
+            "message_id": envelope["body"]["message_id"],
+            "work_type": envelope["body"]["type"],
+            "payload": envelope["body"]["payload"],
+            "status": status,
+            "decided_at": 1100 if status in {"approved", "rejected"} else None,
+        }
+        self.work.update(overrides or {})
+
+    def trusted_peer_public_key(self, sender):
+        if sender != self.sender:
+            raise ValueError("untrusted peer")
+        return self.public
+
+    def get_work(self, work_id):
+        if work_id != self.work["work_id"]:
+            raise ValueError("unknown work")
+        return dict(self.work)
+
+
+def ingest(envelope, public, card, journal, *, now=1100, status="approved",
+           work_overrides=None, inbox=None):
+    inbox = inbox or ApprovedInboxFixture(
+        envelope, public, status=status, overrides=work_overrides
+    )
     return CyberObservatoryAdapter().verify_and_ingest_evidence_submit(
         envelope,
         card,
         trusted_signing_public_key=public,
         local_agent_id="hdi-local-agent",
         journal=journal,
+        inbox=inbox,
+        work_id="work-fixture-001",
         now=now,
     )
 
@@ -164,3 +196,59 @@ def test_reused_sender_nonce_cannot_create_second_evidence_event(tmp_path):
         ingest(replay, public, card, journal)
 
     assert len(list(journal.read_all())) == 2
+
+
+def test_pending_or_rejected_oix_work_cannot_enter_hdi(tmp_path):
+    private, public, sender, card = make_peer()
+    journal = SQLiteJournal(tmp_path / "hdi.sqlite")
+    envelope = make_envelope(private, sender, evidence_payload())
+
+    with pytest.raises(EventValidationError, match="lacks operator approval"):
+        ingest(envelope, public, card, journal, status="pending_review")
+    with pytest.raises(EventValidationError, match="lacks operator approval"):
+        ingest(envelope, public, card, journal, status="rejected")
+
+    assert list(journal.read_all()) == []
+
+
+def test_approval_must_match_sender_message_type_and_payload(tmp_path):
+    private, public, sender, card = make_peer()
+    journal = SQLiteJournal(tmp_path / "hdi.sqlite")
+    envelope = make_envelope(private, sender, evidence_payload())
+
+    with pytest.raises(EventValidationError, match="lacks operator approval"):
+        ingest(
+            envelope, public, card, journal,
+            work_overrides={"message_id": str(uuid.uuid4())},
+        )
+    with pytest.raises(EventValidationError, match="lacks operator approval"):
+        ingest(
+            envelope, public, card, journal,
+            work_overrides={"payload": {"evidence_id": "different"}},
+        )
+
+    assert list(journal.read_all()) == []
+
+
+def test_normalized_event_recovers_after_crash_following_oix_replay_acceptance(tmp_path):
+    private, public, sender, card = make_peer()
+    journal = SQLiteJournal(tmp_path / "hdi.sqlite")
+    envelope = make_envelope(private, sender, evidence_payload())
+    inbox = ApprovedInboxFixture(envelope, public)
+    original_append = journal.append
+    failed = {"once": False}
+
+    def fail_once(event):
+        if event.source_project == "cyber_observatory" and not failed["once"]:
+            failed["once"] = True
+            raise RuntimeError("simulated crash before normalized append")
+        return original_append(event)
+
+    journal.append = fail_once
+    with pytest.raises(RuntimeError, match="simulated crash"):
+        ingest(envelope, public, card, journal, inbox=inbox)
+
+    journal.append = original_append
+    receipt = ingest(envelope, public, card, journal, inbox=inbox)
+    assert len(list(journal.read_all())) == 2
+    assert journal.get(receipt["evidence_event_id"]).source_project == "cyber_observatory"
