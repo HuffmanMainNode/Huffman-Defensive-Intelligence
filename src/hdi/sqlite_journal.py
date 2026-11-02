@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
+import sqlite3
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-import json
 from pathlib import Path
-import sqlite3
-import time
 
 from hdi.model import HDIEvent
+
 
 
 class EventConflictError(ValueError):
