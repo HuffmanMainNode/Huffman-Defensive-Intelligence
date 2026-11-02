@@ -1,0 +1,34 @@
+# Roadmap
+
+## Stage 0: reference foundation
+- [x] Event envelope and evidence-reference validation
+- [x] Four source-specific adapter contracts
+- [x] Local JSONL journal and router
+- [x] CLI validation, tests and CI
+
+## Stage 1: contract maturity
+- [ ] Stable schema and compatibility policy
+- [ ] OIX-backed event signature verification
+- [ ] Idempotency and replay test vectors
+- [ ] Journal crash-recovery and concurrent-writer tests
+- [ ] Contract fixtures from all four upstream projects
+
+## Stage 2: real connectors
+- [ ] OIX authenticated transport
+- [ ] Open-Swarm task/event lifecycle connector
+- [ ] Halloween OSINT evidence-manifest connector
+- [ ] Cyber Observatory finding/SBOM/KEV connector
+- [ ] Retry, dead-letter and approval semantics
+
+## Stage 3: integration validation
+- [ ] Four-process local integration harness
+- [ ] Disconnect, duplicate, delay, malformed-event and clock-skew fault injection
+- [ ] Provenance-chain and conflicting-evidence tests
+- [ ] Reproducible demo with synthetic fixtures
+
+## Stage 4: deployment and review
+- [ ] Containerized local deployment
+- [ ] Key rotation/revocation and secure configuration
+- [ ] Backup, restore and retention procedures
+- [ ] Privacy-safe observability
+- [ ] Independent security review
