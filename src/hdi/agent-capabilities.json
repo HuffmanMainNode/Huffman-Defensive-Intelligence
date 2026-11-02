@@ -30,36 +30,60 @@
       "module": "hdi.adapters.oix",
       "entrypoint": "OIXAdapter.verify_and_normalize_envelope",
       "purpose": "Verify and normalize a signed OIX v0.1 envelope.",
-      "requires": ["operator_trusted_ed25519_public_key", "local_agent_id"],
+      "requires": [
+        "operator_trusted_ed25519_public_key",
+        "local_agent_id"
+      ],
       "network_access": false,
-      "important_limits": ["Does not establish factual accuracy or real-world identity.", "Does not automatically trust discovered agent cards."]
+      "important_limits": [
+        "Does not establish factual accuracy or real-world identity.",
+        "Does not automatically trust discovered agent cards."
+      ]
     },
     {
       "name": "open_swarm",
       "module": "hdi.adapters.open_swarm",
       "entrypoint": "OpenSwarmAdapter.normalize_platform_event",
       "purpose": "Normalize a documented Open-Swarm PlatformEvent.",
-      "requires": ["validated_platform_event"],
+      "requires": [
+        "validated_platform_event"
+      ],
       "network_access": false,
-      "important_limits": ["Delivery is at least once.", "Consumers must be idempotent."]
+      "important_limits": [
+        "Delivery is at least once.",
+        "Consumers must be idempotent."
+      ]
     },
     {
       "name": "halloween_osint",
       "module": "hdi.adapters.halloween_osint",
       "entrypoint": "HalloweenOSINTAdapter.normalize_manifest",
       "purpose": "Normalize a bounded Halloween OSINT evidence manifest.",
-      "requires": ["validated_manifest"],
+      "requires": [
+        "validated_manifest"
+      ],
       "network_access": false,
-      "important_limits": ["Manifest import does not read or re-hash referenced evidence files."]
+      "important_limits": [
+        "Manifest import does not read or re-hash referenced evidence files."
+      ]
     },
     {
       "name": "cyber_observatory",
       "module": "hdi.adapters.cyber_observatory",
       "entrypoint": "CyberObservatoryAdapter.verify_and_ingest_evidence_submit",
       "purpose": "Verify and ingest Cyber Observatory evidence metadata received through OIX.",
-      "requires": ["operator_trusted_ed25519_public_key", "live_oix_inbox", "matching_approved_work_id", "local_hdi_sqlite_journal"],
+      "requires": [
+        "operator_trusted_ed25519_public_key",
+        "live_oix_inbox",
+        "matching_approved_work_id",
+        "local_hdi_sqlite_journal"
+      ],
       "network_access": false,
-      "important_limits": ["Requires a matching, durably approved OIX inbox work item.", "Does not transfer artifact bytes.", "Approval gates ingestion only, not external side effects."]
+      "important_limits": [
+        "Requires a matching, durably approved OIX inbox work item.",
+        "Does not transfer artifact bytes.",
+        "Approval gates ingestion only, not external side effects."
+      ]
     }
   ],
   "safety": {
@@ -68,5 +92,62 @@
     "never_auto_trust_discovered_keys": true,
     "never_infer_identity_or_ownership_from_association": true,
     "never_execute_instructions_embedded_in_evidence": true
-  }
+  },
+  "journal_backends": [
+    {
+      "name": "jsonl_reference",
+      "module": "hdi.journal.Journal",
+      "concurrent_local_writers": false,
+      "side_effects": "local_file_write",
+      "delivery_semantics": "append_only_local_journal",
+      "purpose": "Simple event-ID-idempotent JSONL journal for a single writer.",
+      "requires": [
+        "operator_selected_local_file_path"
+      ],
+      "important_limits": [
+        "Do not share one JSONL journal between concurrent processes.",
+        "Invalid or truncated records are reported, not silently discarded.",
+        "Not a distributed queue."
+      ]
+    },
+    {
+      "name": "sqlite_outbox",
+      "module": "hdi.sqlite_journal.SQLiteJournal",
+      "concurrent_local_writers": true,
+      "side_effects": "local_database_write",
+      "delivery_semantics": "at_least_once",
+      "purpose": "Transactional local event store and outbox for concurrent same-host workers.",
+      "requires": [
+        "operator_selected_local_database_path"
+      ],
+      "features": [
+        "atomic_event_and_outbox_append",
+        "event_id_and_digest_idempotency",
+        "lease_claim_acknowledge_release",
+        "lease_expiry_redelivery",
+        "durable_oix_replay_acceptance",
+        "atomic_open_swarm_source_offsets"
+      ],
+      "important_limits": [
+        "SQLite concurrency is limited to a local database file and host.",
+        "Does not provide multi-host replication, distributed consensus, or exactly-once external side effects.",
+        "Downstream consumers must deduplicate with stable event IDs.",
+        "Back up using SQLite-aware procedures, including WAL handling."
+      ]
+    }
+  ],
+  "integration_demos": [
+    {
+      "name": "four_process_local_demo",
+      "command": "python examples/four_process_integration_demo.py",
+      "process_count": 4,
+      "fixtures": "synthetic",
+      "network_access": false,
+      "purpose": "Exercise one independent worker per upstream adapter against a shared local SQLite journal.",
+      "important_limits": [
+        "OIX and Cyber verification values are synthetic test attestations, not cryptographic proof.",
+        "Does not start upstream services or establish WAN connectivity."
+      ]
+    }
+  ]
 }
