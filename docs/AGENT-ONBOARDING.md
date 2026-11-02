@@ -30,6 +30,9 @@ Do not infer that an installed adapter grants access to an upstream database, ag
 | Produce defensive evidence metadata | [Cyber Observatory agent guide](https://github.com/HuffmanMainNode/Huffman-Cyber-Observatory/blob/main/docs/AGENT-ONBOARDING.md) + [OIX agent guide](https://github.com/HuffmanMainNode/Open-Intelligence-Exchange/blob/main/docs/AGENT-ONBOARDING.md) + HDI Cyber adapter | Exact matching OIX work item must already be approved for HDI ingress |
 | Validate an HDI event | `hdi validate <file>` | Validation is not authenticity verification |
 | Discover advertised local integration capabilities | `hdi capabilities` | Catalogue is descriptive, not an authorization grant |
+| Persist events for one local writer | `hdi.journal.Journal` | JSONL is not safe for concurrent processes |
+| Persist events for concurrent local workers | `hdi.sqlite_journal.SQLiteJournal` | Same-host only; at-least-once delivery; downstream idempotency required |
+| Exercise four adapter processes | `python examples/four_process_integration_demo.py` | Synthetic fixtures only; OIX/Cyber verification is test attestation |
 
 ## Evidence handling protocol
 

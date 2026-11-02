@@ -64,7 +64,14 @@ A valid sample prints its event ID and canonical SHA-256 digest. The digest is a
 
 Read the relevant upstream project's own quick start before using its commands. HDI does not replace their safety controls or automatically start them.
 
-## 5. First safe exercise
+## 5. Choose a local journal
+
+- Use `hdi.journal.Journal` when one process owns a simple JSONL event file.
+- Use `hdi.sqlite_journal.SQLiteJournal` when multiple local processes need a shared event store and durable outbox. SQLite writes are transactional on one host; this is not a multi-host broker.
+- Delivery is at least once. A worker can repeat an external action if it crashes before acknowledgement, so downstream actions need stable idempotency keys.
+- Back up SQLite databases with SQLite-aware procedures. Do not copy only the main database file while WAL writes may be active.
+
+## 6. First safe exercise
 
 Validate the included synthetic event:
 
@@ -80,7 +87,7 @@ hdi capabilities
 
 No network calls, credentials, private keys, external actions or database writes are required for these two steps.
 
-## 6. Connect projects deliberately
+## 7. Connect projects deliberately
 
 Before connecting an upstream project:
 
@@ -94,7 +101,7 @@ Before connecting an upstream project:
 
 The adapters are local integration functions. HDI does not currently expose an MCP server, public API, hosted relay, or automatic network discovery.
 
-## 7. Where to get help
+## 8. Where to get help
 
 - [Architecture](ARCHITECTURE.md)
 - [Threat model](THREAT_MODEL.md)
@@ -108,4 +115,4 @@ If something fails, include the command, Python version, operating system, exact
 
 ## Production warning
 
-HDI 0.8.1 is an experimental local integration foundation. It is not production-ready. The current local journal and SQLite delivery primitives do not provide distributed consensus, a multi-host scheduler, exactly-once execution, production key custody or independent security certification. See the roadmap before deploying beyond a controlled test environment.
+HDI 0.9.0 is an experimental local integration foundation. It is not production-ready. The current local journal and SQLite delivery primitives do not provide distributed consensus, a multi-host scheduler, exactly-once execution, production key custody or independent security certification. See the roadmap before deploying beyond a controlled test environment.
