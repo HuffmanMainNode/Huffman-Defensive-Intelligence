@@ -15,7 +15,7 @@
 - [x] OIX v0.1 Ed25519 signature and operator-trusted peer verification
 - [x] Idempotency and replay test vectors
 - [x] Journal duplicate-ID rejection, fsync append, and valid-record newline recovery tests
-- [ ] Journal concurrent-writer safety (requires a transactional backend or enforced process lock)
+- [x] SQLiteJournal concurrent local-writer safety (transactional backend); JSONL remains single-writer
 - [x] Synthetic contract fixtures from all four upstream project adapters
 
 ## Stage 2: real connectors

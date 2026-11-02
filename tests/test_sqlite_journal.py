@@ -1,10 +1,18 @@
 import json
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from hdi.model import HDIEvent
 from hdi.sqlite_journal import EventConflictError, LeaseError, SQLiteJournal
+
+
+def _append_in_process(args):
+    database, event_data = args
+    journal = SQLiteJournal(database)
+    return journal.append(HDIEvent.from_dict(event_data))
 
 
 def sample_event():
@@ -100,3 +108,50 @@ def test_lease_expiry_can_be_reclaimed_after_worker_restart(tmp_path):
     recovered = restarted.claim_next("worker-after-restart", lease_seconds=5)
     assert recovered is not None
     assert recovered.attempts == 2
+
+
+def test_concurrent_connections_append_same_event_once(tmp_path):
+    database = tmp_path / "concurrent.sqlite"
+    journals = [SQLiteJournal(database) for _ in range(12)]
+    event = sample_event()
+    with ThreadPoolExecutor(max_workers=len(journals)) as pool:
+        digests = list(pool.map(lambda journal: journal.append(event), journals))
+    assert len(set(digests)) == 1
+    assert len(list(journals[0].read_all())) == 1
+    assert journals[0].outbox_counts() == {
+        "pending": 1, "leased": 0, "delivered": 0
+    }
+
+
+def test_concurrent_conflicting_content_has_one_winner(tmp_path):
+    database = tmp_path / "conflicting.sqlite"
+    journals = [SQLiteJournal(database), SQLiteJournal(database)]
+    original = sample_event()
+    changed = replace(original, payload={"different": "content"})
+
+    def append_or_conflict(args):
+        journal, item = args
+        try:
+            return ("accepted", journal.append(item))
+        except EventConflictError:
+            return ("conflict", None)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(append_or_conflict, zip(journals, (original, changed))))
+    assert sorted(result[0] for result in results) == ["accepted", "conflict"]
+    assert len(list(journals[0].read_all())) == 1
+    assert journals[0].outbox_counts()["pending"] == 1
+
+
+def test_concurrent_processes_append_same_event_once(tmp_path):
+    database = str(tmp_path / "processes.sqlite")
+    event = sample_event()
+    args = [(database, event.to_dict()) for _ in range(8)]
+    with ProcessPoolExecutor(max_workers=8) as pool:
+        digests = list(pool.map(_append_in_process, args))
+    journal = SQLiteJournal(database)
+    assert len(set(digests)) == 1
+    assert len(list(journal.read_all())) == 1
+    assert journal.outbox_counts() == {
+        "pending": 1, "leased": 0, "delivered": 0
+    }
