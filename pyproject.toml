@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "huffman-defensive-intelligence"
-version = "0.2.0"
+version = "0.3.0"
 description = "Auditable integration contracts and durable local event delivery for decentralized open-source intelligence"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-dependencies = []
+dependencies = ["cryptography>=42.0.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5"]
