@@ -83,7 +83,13 @@ class OIXAdapter(Adapter):
         if not isinstance(envelope, dict) or set(envelope) != {"body", "signature"}:
             raise EventValidationError("malformed OIX envelope")
         body = envelope["body"]
-        if not isinstance(body, dict) or body.get("protocol") != "OIX" or body.get("version") != "0.1":
+        expected_body_fields = {
+            "protocol", "version", "message_id", "sender", "recipient", "type",
+            "issued_at", "expires_at", "nonce", "requested_capability", "payload",
+        }
+        if not isinstance(body, dict) or set(body) != expected_body_fields:
+            raise EventValidationError("malformed OIX message body fields")
+        if body.get("protocol") != "OIX" or body.get("version") != "0.1":
             raise EventValidationError("unsupported OIX envelope")
         message_type = body.get("type")
         if message_type not in MESSAGE_TYPES:
@@ -94,6 +100,12 @@ class OIXAdapter(Adapter):
             raise EventValidationError("OIX message identity is missing")
         if not isinstance(body.get("recipient"), str) or not body["recipient"]:
             raise EventValidationError("OIX recipient is missing")
+        if not isinstance(body.get("nonce"), str) or not 20 <= len(body["nonce"]) <= 128:
+            raise EventValidationError("invalid OIX nonce")
+        if body.get("requested_capability") is not None and not isinstance(
+            body["requested_capability"], str
+        ):
+            raise EventValidationError("invalid OIX requested capability")
         if not isinstance(envelope.get("signature"), str) or not envelope["signature"]:
             raise EventValidationError("OIX signature field is missing")
         if not SHA256.fullmatch(envelope_sha256 or ""):
@@ -105,6 +117,8 @@ class OIXAdapter(Adapter):
         if (not isinstance(issued_at, int) or isinstance(issued_at, bool)
                 or not isinstance(expires_at, int) or isinstance(expires_at, bool)):
             raise EventValidationError("OIX timestamps must be integer Unix seconds")
+        if not 1 <= expires_at - issued_at <= 86_400:
+            raise EventValidationError("OIX message validity window is invalid")
         try:
             occurred_at = datetime.fromtimestamp(issued_at, UTC).isoformat().replace("+00:00", "Z")
         except (KeyError, TypeError, ValueError, OverflowError, OSError) as exc:
