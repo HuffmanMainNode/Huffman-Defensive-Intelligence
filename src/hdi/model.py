@@ -5,7 +5,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
 
-
 PROJECTS = {"oix", "open_swarm", "halloween_osint", "cyber_observatory", "hdi"}
 IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$")
 HASH = re.compile(r"^[a-f0-9]{64}$")
