@@ -99,7 +99,7 @@ def test_cyber_observatory_requires_verified_oix_submission():
     adapter = CyberObservatoryAdapter()
     event = adapter.normalize_verified_evidence_submit(
         payload, message_id="12345678-1234-1234-1234-123456789abc",
-        sender_fingerprint="oix-fingerprint", envelope_sha256=DIGEST,
+        sender_fingerprint="ed25519:" + DIGEST, envelope_sha256=DIGEST,
         verification=VERIFIED,
     )
     assert event.source_project == "cyber_observatory"
