@@ -61,25 +61,26 @@ HDI must not bypass that approval boundary or imply that the report itself was t
 8. Journal idempotently and acknowledge the upstream delivery only after durable persistence.
 9. Record validation failures without executing embedded instructions.
 
-## Not yet implemented in HDI 0.4.0
+## Remaining work as of HDI 0.8.0
 
-- Live OIX transport or signature verification.
-- A continuously supervised Open-Swarm background relay or service.
-- Halloween OSINT manifest reader.
-- Cyber Observatory report bridge consumer.
-- Cross-project end-to-end integration harness.
+- OIX network transport/listener, trust-store synchronization, key rotation and revocation distribution.
+- A continuously supervised Open-Swarm background relay/service and remote transport.
+- Re-verification of the underlying Halloween OSINT evidence files at import or review time. The current importer reads the manifest only.
+- Direct Cyber Observatory report/SBOM artifact import and a review workflow. The current bridge ingests signed metadata and hashes, not artifact bytes.
+- Four-process integration testing with real local processes, disconnects, delayed messages, duplicate delivery and restart recovery.
+- Containerized deployment, operational observability, backup/restore procedures and independent security review.
 
-The above are the next engineering tasks, not current capabilities.
+These are intentionally not claimed as current capabilities.
 
 
 ## Current HDI normalization entry points
 
-- `OIXAdapter.normalize_verified_envelope(...)` maps a bounded OIX envelope after the caller supplies all required verification outcomes. HDI does not perform cryptographic signature verification, trust-store lookup, recipient verification, or replay checks itself.
-- `OpenSwarmAdapter.normalize_platform_event(...)` preserves the upstream event source, classification, payload, evidence references, correlation ID, and causation ID.
-- `HalloweenOSINTAdapter.normalize_manifest(...)` validates the manifest file records and creates a deterministic event ID from the canonical manifest digest.
-- `CyberObservatoryAdapter.normalize_verified_evidence_submit(...)` accepts the Cyber evidence payload only with the same explicit OIX verification attestation and preserves artifact digest and sender provenance.
+- `OIXAdapter.verify_and_normalize_envelope(...)` verifies the v0.1 Ed25519 agent card and message envelope against an operator-supplied trusted peer key. `SQLiteJournal.append_verified_oix(...)` performs durable sender/nonce and message-ID replay acceptance.
+- `OpenSwarmAdapter.normalize_platform_event(...)` preserves the upstream event source, classification, payload, evidence references, correlation ID, and causation ID. `ingest_open_swarm_batch(...)` consumes an already-open event bus, while `OpenSwarmSQLiteImporter` provides bounded read-only database import with atomic destination cursor advancement.
+- `HalloweenOSINTAdapter.normalize_manifest(...)` validates manifest file records and creates a deterministic event ID from the canonical manifest digest. `HalloweenManifestImporter` reads a bounded manifest file, rejects duplicate JSON keys and unsafe paths, and does not open the referenced evidence directory.
+- `CyberObservatoryAdapter.normalize_verified_evidence_submit(...)` validates the strict Cyber evidence payload. `verify_and_ingest_evidence_submit(...)` verifies a signed OIX envelope, durably accepts its replay key, and appends a separate Cyber evidence event while preserving the artifact digest and sender provenance.
 
-These are in-process normalization functions. The Open-Swarm consumer can be wired to an already-open upstream SQLiteEventBus and HDI SQLiteJournal; it does not discover or open either database automatically. The functions do not bypass the OIX inbox's pending-review state.
+These are local integration functions and importers. They do not start background daemons or open network listeners. The Open-Swarm object consumer requires an already-open upstream SQLiteEventBus, and the read-only importer requires a local source database path. Cyber evidence ingress does not bypass the upstream OIX pending-review state. The cross-project conformance suite is in-process and uses synthetic fixtures.
 
 
 ## Authenticated OIX ingress implementation
