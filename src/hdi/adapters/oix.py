@@ -1,18 +1,19 @@
 import base64
 import binascii
-from dataclasses import dataclass
-from datetime import UTC, datetime
 import hashlib
 import json
 import re
 import unicodedata
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from hdi.adapters.base import Adapter
 from hdi.model import EventValidationError, HDIEvent
+
 
 MESSAGE_TYPES = {
     "agent.hello": "oix.peer.hello_received",
