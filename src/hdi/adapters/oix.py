@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from hdi.adapters.base import Adapter
 from hdi.model import EventValidationError, HDIEvent
 
-
 MESSAGE_TYPES = {
     "agent.hello": "oix.peer.hello_received",
     "agent.hello_ack": "oix.peer.handshake_completed",
