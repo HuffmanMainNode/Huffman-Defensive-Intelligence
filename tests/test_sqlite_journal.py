@@ -1,5 +1,5 @@
 import json
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
@@ -7,6 +7,14 @@ import pytest
 
 from hdi.model import HDIEvent
 from hdi.sqlite_journal import EventConflictError, LeaseError, SQLiteJournal
+
+
+
+
+def _append_in_process(args):
+    database, event_data = args
+    journal = SQLiteJournal(database)
+    return journal.append(HDIEvent.from_dict(event_data))
 
 
 def sample_event():
@@ -135,3 +143,17 @@ def test_concurrent_conflicting_content_has_one_winner(tmp_path):
     assert sorted(result[0] for result in results) == ["accepted", "conflict"]
     assert len(list(journals[0].read_all())) == 1
     assert journals[0].outbox_counts()["pending"] == 1
+
+
+def test_concurrent_processes_append_same_event_once(tmp_path):
+    database = str(tmp_path / "processes.sqlite")
+    event = sample_event()
+    args = [(database, event.to_dict()) for _ in range(8)]
+    with ProcessPoolExecutor(max_workers=8) as pool:
+        digests = list(pool.map(_append_in_process, args))
+    journal = SQLiteJournal(database)
+    assert len(set(digests)) == 1
+    assert len(list(journal.read_all())) == 1
+    assert journal.outbox_counts() == {
+        "pending": 1, "leased": 0, "delivered": 0
+    }
