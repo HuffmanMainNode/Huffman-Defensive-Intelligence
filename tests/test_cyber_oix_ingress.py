@@ -252,3 +252,30 @@ def test_normalized_event_recovers_after_crash_following_oix_replay_acceptance(t
     receipt = ingest(envelope, public, card, journal, inbox=inbox)
     assert len(list(journal.read_all())) == 2
     assert journal.get(receipt["evidence_event_id"]).source_project == "cyber_observatory"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda p: p.update({"source_uri": "https://user:pass@example.org/a"}),
+        lambda p: p.update({"source_uri": "https://example.org/" + "x" * 2050}),
+        lambda p: p.update({"collected_at": "2026-11-02T12:00:00"}),
+        lambda p: p.update({"source_timestamp": "not-a-timestamp"}),
+        lambda p: p["collector"].update({"version": "v" * 33}),
+        lambda p: p["artifact"].update({"media_type": "not-a-mime"}),
+        lambda p: p["artifact"].update({"size_bytes": 1_000_000_000_001}),
+        lambda p: p["summary"].update({"unsafe_float": 1.25}),
+        lambda p: p.update({"limitations": ["x" * 513]}),
+    ],
+)
+def test_upstream_evidence_field_limits_are_enforced_before_ingest(tmp_path, mutate):
+    private, public, sender, card = make_peer()
+    payload = evidence_payload()
+    mutate(payload)
+    envelope = make_envelope(private, sender, payload)
+    journal = SQLiteJournal(tmp_path / "hdi.sqlite")
+
+    with pytest.raises(EventValidationError):
+        ingest(envelope, public, card, journal)
+
+    assert list(journal.read_all()) == []
