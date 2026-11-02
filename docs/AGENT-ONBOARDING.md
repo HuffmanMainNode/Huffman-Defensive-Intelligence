@@ -27,7 +27,7 @@ Do not infer that an installed adapter grants access to an upstream database, ag
 | Verify and normalize a signed agent message | [OIX agent guide](https://github.com/HuffmanMainNode/Open-Intelligence-Exchange/blob/main/docs/AGENT-ONBOARDING.md) + HDI OIX adapter | Public key must come from operator-controlled trust |
 | Consume task lifecycle events | [Open-Swarm agent guide](https://github.com/HuffmanMainNode/-Open-Swarm/blob/main/docs/AGENT-ONBOARDING.md) + HDI Open-Swarm adapter | At-least-once delivery; idempotent event IDs |
 | Import an evidence manifest | [Halloween OSINT agent contract](https://github.com/HuffmanMainNode/Halloween-OSINT-2026/blob/main/AGENTS.md) + HDI manifest importer | Manifest import does not re-hash referenced evidence bytes |
-| Ingest Cyber evidence metadata | [OIX agent guide](https://github.com/HuffmanMainNode/Open-Intelligence-Exchange/blob/main/docs/AGENT-ONBOARDING.md) + HDI Cyber adapter | Exact matching OIX work item must already be approved |
+| Produce defensive evidence metadata | [Cyber Observatory agent guide](https://github.com/HuffmanMainNode/Huffman-Cyber-Observatory/blob/main/docs/AGENT-ONBOARDING.md) + [OIX agent guide](https://github.com/HuffmanMainNode/Open-Intelligence-Exchange/blob/main/docs/AGENT-ONBOARDING.md) + HDI Cyber adapter | Exact matching OIX work item must already be approved for HDI ingress |
 | Validate an HDI event | `hdi validate <file>` | Validation is not authenticity verification |
 | Discover advertised local integration capabilities | `hdi capabilities` | Catalogue is descriptive, not an authorization grant |
 
