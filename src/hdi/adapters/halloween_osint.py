@@ -32,13 +32,21 @@ class HalloweenOSINTAdapter(Adapter):
         files = manifest["files"]
         if not isinstance(files, list) or len(files) > 10_000:
             raise EventValidationError("manifest files must be a list of at most 10000 items")
+        seen_paths = set()
         for item in files:
             if not isinstance(item, dict) or set(item) != {"path", "size_bytes", "sha256"}:
                 raise EventValidationError("malformed manifest file record")
             rel = PurePosixPath(item["path"]) if isinstance(item["path"], str) else None
-            if (rel is None or rel.is_absolute() or ".." in rel.parts or not item["path"]
-                    or "\\" in item["path"] or "\x00" in item["path"]):
-                raise EventValidationError("manifest paths must be safe relative POSIX paths")
+            if (
+                rel is None or rel.is_absolute() or ".." in rel.parts or not item["path"]
+                or "\\" in item["path"] or "\x00" in item["path"]
+                or len(item["path"]) > 1024 or rel.as_posix() != item["path"]
+                or (rel.parts and ":" in rel.parts[0])
+            ):
+                raise EventValidationError("manifest paths must be canonical safe relative POSIX paths")
+            if item["path"] in seen_paths:
+                raise EventValidationError("manifest contains duplicate file paths")
+            seen_paths.add(item["path"])
             if (not isinstance(item["size_bytes"], int) or isinstance(item["size_bytes"], bool)
                     or item["size_bytes"] < 0):
                 raise EventValidationError("manifest size_bytes must be a non-negative integer")
