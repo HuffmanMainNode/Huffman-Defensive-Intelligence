@@ -87,3 +87,10 @@ HDI can now verify an OIX v0.1 signed `evidence.submit` envelope against an oper
 The journal retains both provenance layers: the original OIX message and the normalized Cyber evidence record. Repeated identical deliveries are idempotent. Invalid evidence payloads are rejected before replay acceptance. See [Cyber Evidence Ingress](docs/CYBER_EVIDENCE_INGRESS.md).
 
 This remains an in-process local integration. It does not create an OIX network listener, synchronize trust stores or revocations, fetch the report artifact, or bypass the OIX pending-review process.
+
+
+## HDI 0.8.0: four-project conformance harness
+
+The conformance suite now exercises OIX, Open-Swarm, Halloween OSINT and Cyber Observatory adapters against one HDI journal. It verifies authenticated OIX ingestion, source-specific normalization, evidence provenance, distinct OIX/Cyber event identities, and idempotent repeat ingestion without duplicate outbox rows.
+
+This is a deterministic in-process integration test using synthetic fixtures. It is not a four-process deployment test, a WAN mesh, or a production environment. See [Cross-Project Conformance](docs/CROSS_PROJECT_CONFORMANCE.md).
