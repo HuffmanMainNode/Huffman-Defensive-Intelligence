@@ -23,8 +23,8 @@ class HalloweenOSINTAdapter(Adapter):
 
     def normalize_manifest(self, manifest):
         required = {"schema_version", "created_at", "algorithm", "root", "files"}
-        if not isinstance(manifest, dict) or not required.issubset(manifest):
-            raise EventValidationError("incomplete Halloween OSINT evidence manifest")
+        if not isinstance(manifest, dict) or set(manifest) != required:
+            raise EventValidationError("incomplete or unknown Halloween OSINT manifest fields")
         if manifest["schema_version"] != "1.0" or manifest["algorithm"] != "sha256":
             raise EventValidationError("unsupported Halloween OSINT manifest version or algorithm")
         if not isinstance(manifest["root"], str) or not manifest["root"]:
@@ -55,7 +55,8 @@ class HalloweenOSINTAdapter(Adapter):
                 "upstream": "halloween_osint",
                 "manifest_sha256": digest,
                 "algorithm": "sha256",
-                "root": manifest["root"],
+                "classification": "internal",
+                "root_path_redacted": True,
                 "files": files,
             },
             evidence=(EvidenceReference(
