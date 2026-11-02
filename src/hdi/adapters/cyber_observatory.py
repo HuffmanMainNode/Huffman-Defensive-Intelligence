@@ -1,7 +1,8 @@
 import re
 
 from hdi.adapters.base import Adapter
-from hdi.model import EventValidationError, EvidenceReference, HASH, HDIEvent
+from hdi.model import HASH, EventValidationError, EvidenceReference, HDIEvent
+
 
 CLASSIFICATIONS = {"public", "internal", "restricted"}
 STATUSES = {"observed", "derived", "unverified"}
