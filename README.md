@@ -60,3 +60,12 @@ HDI now provides `ingest_open_swarm_batch(bus, journal, ...)` for the documented
 If the process stops after the HDI append but before the Open-Swarm acknowledgement, the source redelivers the event and HDI's stable event ID plus canonical digest make the retry idempotent. Classification, source, evidence references, correlation ID and causation ID are preserved.
 
 This is an explicit local callable, not a background daemon. The operator must supply already-open bus and journal objects, use a stable consumer ID, and supervise one active poller for that consumer. It does not enable cross-host coordination or exactly-once processing. See [Open-Swarm Connector](docs/OPEN_SWARM_CONNECTOR.md).
+
+
+## HDI 0.5.0: read-only Open-Swarm database import
+
+HDI now includes `OpenSwarmSQLiteImporter`, which reads the upstream `platform_events` table through a read-only SQLite connection. It verifies the source schema, canonical JSON representation, indexed-column consistency and event contract before import.
+
+The normalized events, pending HDI outbox rows and source cursor are committed atomically in the destination journal. The importer never writes to the Open-Swarm database or acknowledges its consumer offsets. A stable source ID is bound to the resolved database path to prevent accidental cursor reuse against another file.
+
+This is a local pull importer, not a network connector or background service. See [Open-Swarm Import](docs/OPEN_SWARM_IMPORT.md). The existing `ingest_open_swarm_batch` callable remains available for integrations that already hold an Open-Swarm bus object.
