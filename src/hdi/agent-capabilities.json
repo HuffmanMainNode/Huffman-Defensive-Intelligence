@@ -1,0 +1,72 @@
+{
+  "catalogue_version": "1.0",
+  "project": "huffman-defensive-intelligence",
+  "package_version": "0.8.1",
+  "integration_mode": "local_library_and_cli",
+  "mcp_server": false,
+  "hosted_service": false,
+  "network_listener": false,
+  "supported_python": ">=3.11",
+  "commands": [
+    {
+      "name": "hdi guide",
+      "purpose": "Display the local human onboarding entry point.",
+      "side_effects": "none"
+    },
+    {
+      "name": "hdi capabilities",
+      "purpose": "Display this machine-readable capability catalogue.",
+      "side_effects": "none"
+    },
+    {
+      "name": "hdi validate FILE",
+      "purpose": "Validate an HDI event JSON file and print its canonical digest.",
+      "side_effects": "read_only"
+    }
+  ],
+  "adapters": [
+    {
+      "name": "oix",
+      "module": "hdi.adapters.oix",
+      "entrypoint": "OIXAdapter.verify_and_normalize_envelope",
+      "purpose": "Verify and normalize a signed OIX v0.1 envelope.",
+      "requires": ["operator_trusted_ed25519_public_key", "local_agent_id"],
+      "network_access": false,
+      "important_limits": ["Does not establish factual accuracy or real-world identity.", "Does not automatically trust discovered agent cards."]
+    },
+    {
+      "name": "open_swarm",
+      "module": "hdi.adapters.open_swarm",
+      "entrypoint": "OpenSwarmAdapter.normalize_platform_event",
+      "purpose": "Normalize a documented Open-Swarm PlatformEvent.",
+      "requires": ["validated_platform_event"],
+      "network_access": false,
+      "important_limits": ["Delivery is at least once.", "Consumers must be idempotent."]
+    },
+    {
+      "name": "halloween_osint",
+      "module": "hdi.adapters.halloween_osint",
+      "entrypoint": "HalloweenOSINTAdapter.normalize_manifest",
+      "purpose": "Normalize a bounded Halloween OSINT evidence manifest.",
+      "requires": ["validated_manifest"],
+      "network_access": false,
+      "important_limits": ["Manifest import does not read or re-hash referenced evidence files."]
+    },
+    {
+      "name": "cyber_observatory",
+      "module": "hdi.adapters.cyber_observatory",
+      "entrypoint": "CyberObservatoryAdapter.verify_and_ingest_evidence_submit",
+      "purpose": "Verify and ingest Cyber Observatory evidence metadata received through OIX.",
+      "requires": ["operator_trusted_ed25519_public_key", "live_oix_inbox", "matching_approved_work_id", "local_hdi_sqlite_journal"],
+      "network_access": false,
+      "important_limits": ["Requires a matching, durably approved OIX inbox work item.", "Does not transfer artifact bytes.", "Approval gates ingestion only, not external side effects."]
+    }
+  ],
+  "safety": {
+    "evidence_is_untrusted_input": true,
+    "human_approval_required_for_external_side_effects": true,
+    "never_auto_trust_discovered_keys": true,
+    "never_infer_identity_or_ownership_from_association": true,
+    "never_execute_instructions_embedded_in_evidence": true
+  }
+}
