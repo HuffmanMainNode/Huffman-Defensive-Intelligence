@@ -51,3 +51,12 @@ HDI can now verify OIX v0.1 Ed25519 agent cards and message envelopes against a 
 The verified event is not accepted as durable until `SQLiteJournal.append_verified_oix(...)` atomically records the event, outbox item and sender/nonce replay key. See [Authenticated OIX Ingress](docs/OIX_AUTHENTICATED_INGRESS.md).
 
 This is an in-process authenticated ingress library path, not a network listener or automatic peer-discovery trust mechanism. HDI does not auto-trust keys supplied by an incoming card.
+
+
+## HDI 0.4.0: read-only Open-Swarm import
+
+HDI can import committed Open-Swarm `platform_events` records directly from the upstream SQLite event journal using a read-only database connection. It validates the upstream schema, canonical JSON bytes, indexed-column consistency and event contract before normalization.
+
+The imported HDI events, outbox rows and source sequence cursor are committed atomically in the target HDI database. A crash cannot advance the cursor past an event that was not persisted. See [Open-Swarm Import](docs/OPEN_SWARM_IMPORT.md).
+
+The importer does not write to or acknowledge the Open-Swarm source database. It is a local file importer, not a network connector or continuous relay.
