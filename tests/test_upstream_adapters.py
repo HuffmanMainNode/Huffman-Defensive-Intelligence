@@ -1,4 +1,4 @@
-from hdi.adapters.oix import OIXAdapter, REQUIRED_CHECKS as OIX_CHECKS
+from hdi.adapters.oix import OIXAdapter, REQUIRED_CHECKS as OIX_CHECKS, canonical_envelope_sha256
 from hdi.adapters.open_swarm import OpenSwarmAdapter
 from hdi.adapters.halloween_osint import HalloweenOSINTAdapter
 from hdi.adapters.cyber_observatory import CyberObservatoryAdapter
@@ -29,7 +29,7 @@ def test_oix_adapter_requires_upstream_verification():
     else:
         raise AssertionError("unverified OIX envelope was accepted")
     event = adapter.normalize_verified_envelope(
-        envelope, verification=VERIFIED, envelope_sha256=DIGEST
+        envelope, verification=VERIFIED, envelope_sha256=canonical_envelope_sha256(envelope)
     )
     assert event.source_project == "oix"
     assert event.event_type == "swarm.task.request_received"
