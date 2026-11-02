@@ -24,6 +24,7 @@
 - [ ] Retry, dead-letter and approval semantics
 
 ## Stage 3: integration validation
+- [x] Four-project in-process event journal conformance harness
 - [ ] Four-process local integration harness
 - [ ] Disconnect, duplicate, delay, malformed-event and clock-skew fault injection
 - [ ] Provenance-chain and conflicting-evidence tests
