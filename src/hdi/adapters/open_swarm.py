@@ -24,11 +24,12 @@ class OpenSwarmAdapter(Adapter):
             "classification", "evidence_refs", "correlation_id", "causation_id",
             "occurred_at",
         }
-        if not isinstance(raw, dict) or not required.issubset(raw):
-            raise EventValidationError("incomplete Open-Swarm PlatformEvent")
+        if not isinstance(raw, dict) or set(raw) != required:
+            raise EventValidationError("incomplete or unknown Open-Swarm PlatformEvent fields")
         if raw["schema_version"] != "1.0":
             raise EventValidationError("unsupported Open-Swarm event schema")
-        if raw["classification"] not in CLASSIFICATIONS:
+        if (not isinstance(raw["classification"], str)
+                or raw["classification"] not in CLASSIFICATIONS):
             raise EventValidationError("invalid Open-Swarm classification")
         if not isinstance(raw["source"], str) or not raw["source"].strip():
             raise EventValidationError("Open-Swarm source is required")
