@@ -105,3 +105,9 @@ New operators: begin with [Human Onboarding](docs/USER-ONBOARDING.md). AI agents
 After installation, run `hdi guide` for the first steps and `hdi capabilities` for the machine-readable adapter catalogue. The catalogue is descriptive, not an authorization grant. HDI does not currently expose an MCP server or hosted API.
 
 The package version is 0.9.0. This is an experimental local integration release, not a production deployment claim.
+
+## Four-process local integration demo
+
+Run `python examples/four_process_integration_demo.py` to launch four independent adapter workers that normalize synthetic fixtures and write to one local SQLite journal. The test verifies one durable event and outbox item per project. See [Four-Process Integration](docs/FOUR_PROCESS_INTEGRATION.md).
+
+This is a local process/concurrency test only. OIX and Cyber Observatory verification flags are synthetic test attestations, not cryptographic proof. It does not start upstream services or establish WAN connectivity.
