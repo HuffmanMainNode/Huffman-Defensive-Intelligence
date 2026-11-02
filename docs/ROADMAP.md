@@ -14,7 +14,8 @@
 - [ ] User-facing diagnostic command for local connector prerequisites
 - [x] OIX v0.1 Ed25519 signature and operator-trusted peer verification
 - [x] Idempotency and replay test vectors
-- [ ] Journal crash-recovery and concurrent-writer tests
+- [x] Journal duplicate-ID rejection, fsync append, and valid-record newline recovery tests
+- [ ] Journal concurrent-writer safety (requires a transactional backend or enforced process lock)
 - [x] Synthetic contract fixtures from all four upstream project adapters
 
 ## Stage 2: real connectors
