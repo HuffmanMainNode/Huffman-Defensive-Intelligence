@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import uuid
 
 import pytest
@@ -19,8 +20,6 @@ def make_peer():
     public = private.public_key().public_bytes(
         serialization.Encoding.Raw, serialization.PublicFormat.Raw
     )
-    import hashlib
-
     agent_id = "ed25519:" + hashlib.sha256(public).hexdigest()
     card = {
         "protocol": "OIX",
@@ -94,7 +93,7 @@ def test_invalid_message_signature_is_rejected(tmp_path):
 
 
 def test_card_key_must_match_operator_trusted_key():
-    private, public, sender, card = make_peer()
+    private, _, sender, card = make_peer()
     _, other_public, _, _ = make_peer()
     envelope = make_envelope(private, sender, "local-agent")
     with pytest.raises(EventValidationError, match="operator-trusted"):
