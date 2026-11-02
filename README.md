@@ -96,7 +96,7 @@ This remains an in-process local integration. It does not create an OIX network 
 
 The conformance suite now exercises OIX, Open-Swarm, Halloween OSINT and Cyber Observatory adapters against one HDI journal. It verifies authenticated OIX ingestion, source-specific normalization, evidence provenance, distinct OIX/Cyber event identities, and idempotent repeat ingestion without duplicate outbox rows.
 
-This is a deterministic in-process integration test using synthetic fixtures. It is not a four-process deployment test, a WAN mesh, or a production environment. See [Cross-Project Conformance](docs/CROSS_PROJECT_CONFORMANCE.md).
+This is a deterministic in-process integration test using synthetic fixtures. It is not a four-process deployment test, a WAN mesh, or a production environment. See [Cross-Project Conformance](docs/CROSS_PROJECT_CONFORMANCE.md) and the [Fault-Injection Matrix](docs/FAULT_INJECTION.md).
 
 ## Start here: human and agent onboarding
 

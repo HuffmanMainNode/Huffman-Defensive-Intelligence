@@ -1,0 +1,42 @@
+# Fault-injection and recovery coverage
+
+This matrix separates behaviors that are exercised by automated tests from failure modes that still require a transport or deployment environment. A passing local test is not a production certification.
+
+## Automated coverage
+
+| Failure or adversarial condition | Current behavior | Test coverage |
+|---|---|---|
+| Duplicate HDI event ID with identical canonical content | Idempotent append; one event and one outbox row | `tests/test_sqlite_journal.py` |
+| Reused event ID with different content | Reject with `EventConflictError`; do not overwrite | `tests/test_sqlite_journal.py` |
+| Concurrent local writer processes | SQLite initialization retries lock/busy collisions; transactional append serializes writers | `tests/test_sqlite_journal.py`, `tests/test_four_process_integration.py` |
+| Worker stops after claiming a delivery | Lease expires and a restarted worker can reclaim the same event | `tests/test_sqlite_journal.py` |
+| Transient delivery failure | Explicit release returns the item to pending | `tests/test_sqlite_journal.py` |
+| Wrong worker acknowledges or releases a lease | Reject with `LeaseError` | `tests/test_sqlite_journal.py` |
+| Replayed OIX sender nonce or message ID | Durable replay gate rejects reuse; identical accepted envelope retry is idempotent | `tests/test_oix_authenticated_ingress.py` |
+| Expired or too-far-future OIX message | Reject during message verification | `tests/test_oix_authenticated_ingress.py` |
+| Invalid signature or untrusted peer key | Reject before durable OIX acceptance | `tests/test_oix_authenticated_ingress.py` |
+| Malformed or tampered Open-Swarm source row | Reject import; source cursor does not advance | `tests/test_open_swarm_importer.py` |
+| Conflicting event in an imported source batch | Roll back the whole HDI batch and source cursor | `tests/test_open_swarm_importer.py` |
+| Repeated Open-Swarm import | Stable event identity and source cursor prevent duplicate event/outbox rows | `tests/test_open_swarm_importer.py` |
+| Cross-project adapter contract mismatch | Reject invalid source shape, verification or digest | `tests/test_upstream_adapters.py` |
+
+## Not yet tested or implemented
+
+- **Network disconnect/reconnect and delayed delivery:** HDI does not currently provide a network listener or supervised WAN relay. These require a real transport test harness.
+- **Process termination during an in-flight SQLite transaction:** transaction atomicity is relied upon, but hard-kill fault injection at commit boundaries has not been run.
+- **Storage exhaustion, filesystem errors, database corruption and restore drills:** no operational disaster-recovery test has been completed.
+- **Lease fencing across worker identity reuse:** worker IDs should be unique per live worker instance. A future lease-token/fencing design is needed to protect against stale processes reusing the same worker ID.
+- **External side-effect deduplication:** HDI provides at-least-once outbox delivery. It cannot guarantee exactly-once effects in downstream systems.
+- **Peer key rotation/revocation and replay-record retention operations:** these remain operator-managed and are not automated.
+
+## Run the relevant checks
+
+```bash
+pytest -q tests/test_sqlite_journal.py
+pytest -q tests/test_oix_authenticated_ingress.py
+pytest -q tests/test_open_swarm_importer.py
+pytest -q tests/test_four_process_integration.py
+pytest -q tests/test_upstream_adapters.py
+```
+
+All test data is synthetic unless a test explicitly states otherwise. Do not use production secrets, private keys or restricted evidence in fault-injection fixtures.
