@@ -26,9 +26,9 @@ hdi validate examples/sample-event.json
 
 ## Foundation scope
 
-Includes a versioned event envelope, evidence-reference validation, four source-specific adapter contracts, a local JSONL journal, routing helper, validation CLI, tests, and CI.
+Includes a versioned event envelope, evidence-reference validation, four source-specific adapter contracts, a single-writer JSONL reference journal, an optional transactional SQLite journal with outbox and leases, routing helpers, validation CLI, tests, and CI.
 
-The adapters now normalize selected upstream record shapes locally, including OIX-verified envelopes, Open-Swarm PlatformEvents, Halloween OSINT manifests, and Cyber Observatory evidence submissions. They do not open network connections or call upstream APIs. OIX verification is an explicit caller-supplied attestation; HDI does not independently verify OIX signatures. The journal is single-writer and local, not a distributed queue. This release does not claim production WAN transport, distributed consensus, production PKI, or an independent security audit.
+The adapters now normalize selected upstream record shapes locally, including OIX-verified envelopes, Open-Swarm PlatformEvents, Halloween OSINT manifests, and Cyber Observatory evidence submissions. They do not open network connections or call upstream APIs. OIX verification is an explicit caller-supplied attestation; HDI does not independently verify OIX signatures. The JSONL journal is single-writer; the optional SQLite journal supports concurrent local writers and durable outbox delivery. Both are local, not a distributed queue. This release does not claim production WAN transport, distributed consensus, production PKI, or an independent security audit.
 
 Security rules: incoming data is untrusted; preserve provenance; never place secrets or private keys in events; require human approval for external side effects; do not treat collected content as instructions.
 
