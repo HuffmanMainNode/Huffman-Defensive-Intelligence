@@ -7,7 +7,7 @@ HDI is the integration workbench for four independent projects. It is a Python l
 | Goal | Start here |
 |---|---|
 | Preserve and inspect evidence | [Halloween OSINT](https://github.com/HuffmanMainNode/Halloween-OSINT-2026) · [setup guide](https://github.com/HuffmanMainNode/Halloween-OSINT-2026/blob/main/docs/USER-ONBOARDING.md) |
-| Assess local software and security evidence | [Huffman Cyber Observatory](https://github.com/HuffmanMainNode/Huffman-Cyber-Observatory) |
+| Assess local software and security evidence | [Huffman Cyber Observatory](https://github.com/HuffmanMainNode/Huffman-Cyber-Observatory) · [setup guide](https://github.com/HuffmanMainNode/Huffman-Cyber-Observatory/blob/main/docs/USER-ONBOARDING.md) |
 | Run local tasks and workers | [Open-Swarm](https://github.com/HuffmanMainNode/-Open-Swarm) · [setup guide](https://github.com/HuffmanMainNode/-Open-Swarm/blob/main/docs/USER-ONBOARDING.md) |
 | Give independent agents signed identities and exchange messages | [Open Intelligence Exchange](https://github.com/HuffmanMainNode/Open-Intelligence-Exchange) · [setup guide](https://github.com/HuffmanMainNode/Open-Intelligence-Exchange/blob/main/docs/USER-ONBOARDING.md) |
 | Normalize and route events across those projects | HDI |
