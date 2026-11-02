@@ -23,6 +23,12 @@ def test_capabilities_is_valid_packaged_json(monkeypatch, capsys):
     assert catalogue["catalogue_version"] == "1.0"
     assert catalogue["package_version"] == __version__
     assert catalogue["mcp_server"] is False
+    assert {backend["name"] for backend in catalogue["journal_backends"]} == {
+        "jsonl_reference", "sqlite_outbox"
+    }
+    assert catalogue["journal_backends"][1]["concurrent_local_writers"] is True
+    assert catalogue["journal_backends"][1]["delivery_semantics"] == "at_least_once"
+    assert catalogue["integration_demos"][0]["fixtures"] == "synthetic"
     assert {adapter["name"] for adapter in catalogue["adapters"]} == {
         "oix",
         "open_swarm",
