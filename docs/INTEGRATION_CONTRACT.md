@@ -89,3 +89,12 @@ HDI 0.3.0 implements an in-process OIX v0.1 verification path using Ed25519 and 
 After verification, `SQLiteJournal.append_verified_oix` atomically writes the HDI event, outbox row and sender/nonce replay record. Repeated identical deliveries are idempotent. Reused sender nonces or message IDs are rejected. Replay records are retained in the local database; do not delete them while messages may be replayed.
 
 This does not yet provide a network listener, automatic OIX trust-store synchronization, peer-key revocation propagation, or multi-host replay consensus.
+
+
+## Open-Swarm SQLite import implementation
+
+HDI 0.4.0 includes a read-only importer for the upstream `SQLiteEventBus.platform_events` table. It checks the exact expected column set, canonical event JSON, and agreement between canonical JSON and indexed database columns before normalizing each record.
+
+The HDI target journal stores a stable caller-supplied source ID and last imported sequence. Event/outbox inserts and cursor advancement occur in one transaction. Identical event IDs are idempotent; conflicting content aborts the entire batch without advancing the cursor.
+
+This importer reads a local SQLite file only. It does not mutate the source database, update the source consumer offsets, invoke the Open-Swarm outbox relay, or provide remote synchronization. See [Open-Swarm Import](OPEN_SWARM_IMPORT.md).
