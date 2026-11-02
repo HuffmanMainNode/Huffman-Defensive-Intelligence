@@ -82,11 +82,11 @@ See [Halloween Manifest Import](docs/HALLOWEEN_MANIFEST_IMPORT.md).
 
 ## HDI 0.7.0: verified Cyber Observatory evidence ingress
 
-HDI can now verify an OIX v0.1 signed `evidence.submit` envelope against an operator-trusted Ed25519 peer key, validate the Cyber Observatory evidence payload, durably accept the OIX replay key, and append a separate normalized Cyber evidence event.
+HDI verifies an OIX v0.1 signed `evidence.submit` against an operator-trusted Ed25519 peer key, validates the Cyber Observatory evidence payload, and requires the matching OIX inbox work item to be durably `approved` before journal ingestion. It also checks that the peer remains trusted in that inbox and that the approved work item matches the exact sender, message ID, message type and payload.
 
-The journal retains both provenance layers: the original OIX message and the normalized Cyber evidence record. Repeated identical deliveries are idempotent. Invalid evidence payloads are rejected before replay acceptance. See [Cyber Evidence Ingress](docs/CYBER_EVIDENCE_INGRESS.md).
+The journal retains both provenance layers: the original OIX message and the normalized Cyber evidence record. Repeated identical deliveries are idempotent. Invalid evidence and pending/rejected/mismatched work are rejected before replay acceptance. See [Cyber Evidence Ingress](docs/CYBER_EVIDENCE_INGRESS.md).
 
-This remains an in-process local integration. It does not create an OIX network listener, synchronize trust stores or revocations, fetch the report artifact, or bypass the OIX pending-review process.
+This remains an in-process local integration. It does not create an OIX network listener, synchronize trust stores or revocations, fetch the report artifact, or execute approved work. Approval is a gate to evidence ingestion, not permission for external side effects.
 
 
 ## HDI 0.8.0: four-project conformance harness
