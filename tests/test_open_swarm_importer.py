@@ -145,3 +145,19 @@ def test_symlinked_source_database_is_rejected(tmp_path):
     link.symlink_to(source)
     with pytest.raises(ValueError, match="symlink"):
         OpenSwarmSQLiteImporter(link, source_id="symlink-source")
+
+
+def test_source_id_cannot_be_reused_for_a_different_database(tmp_path):
+    first_source = tmp_path / "first.sqlite"
+    second_source = tmp_path / "second.sqlite"
+    create_source(first_source, [make_raw()])
+    create_source(second_source, [make_raw()])
+    journal = SQLiteJournal(tmp_path / "hdi.sqlite")
+    OpenSwarmSQLiteImporter(
+        first_source, source_id="same-logical-source"
+    ).import_into(journal)
+    second_importer = OpenSwarmSQLiteImporter(
+        second_source, source_id="same-logical-source"
+    )
+    with pytest.raises(ValueError, match="different source identity"):
+        second_importer.import_into(journal)
