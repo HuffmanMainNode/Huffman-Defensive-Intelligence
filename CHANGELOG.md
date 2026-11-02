@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+- Added a read-only Open-Swarm SQLite event importer with source schema and canonical-row integrity checks.
+- Added atomic source cursor, event and outbox persistence with resume and conflict rollback.
+- Bound import cursors to resolved source database identity and rejected symlink paths.
+- Added importer tests for read-only access, corruption, idempotency, conflict rollback and restart recovery.
+
+
 ## 0.4.0
 - Added a durable Open-Swarm consumer that appends normalized events to HDI before acknowledging the source offset.
 - Added retry-safe idempotent ingestion across the append/ack crash window.
