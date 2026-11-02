@@ -9,13 +9,14 @@
 ## Stage 1: contract maturity
 - [ ] Stable schema and compatibility policy
 - [ ] OIX-backed event signature verification
-- [ ] Idempotency and replay test vectors
+- [x] Idempotency and replay test vectors
 - [ ] Journal crash-recovery and concurrent-writer tests
 - [ ] Contract fixtures from all four upstream projects
 
 ## Stage 2: real connectors
 - [ ] OIX authenticated transport
-- [ ] Open-Swarm task/event lifecycle connector
+- [x] Open-Swarm local read-only event import and explicit bus consumer callable
+- [ ] Supervised Open-Swarm background relay and remote transport
 - [ ] Halloween OSINT evidence-manifest connector
 - [ ] Cyber Observatory finding/SBOM/KEV connector
 - [ ] Retry, dead-letter and approval semantics
