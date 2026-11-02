@@ -1,7 +1,8 @@
 import argparse
 import json
 import sys
-from hdi.model import HDIEvent, EventValidationError
+
+from hdi.model import EventValidationError, HDIEvent
 
 
 def main():

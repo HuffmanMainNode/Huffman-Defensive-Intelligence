@@ -1,7 +1,9 @@
 import json
 from pathlib import Path
+
 import pytest
-from hdi.model import HDIEvent, EventValidationError
+
+from hdi.model import EventValidationError, HDIEvent
 
 
 def sample():

@@ -1,5 +1,5 @@
 from hdi.adapters.base import Adapter
-from hdi.model import HDIEvent, EventValidationError
+from hdi.model import EventValidationError, HDIEvent
 
 CLASSIFICATIONS = {"public", "internal", "restricted"}
 

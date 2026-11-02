@@ -35,3 +35,10 @@ Security rules: incoming data is untrusted; preserve provenance; never place sec
 HDI's next integration stage is grounded in the existing upstream contracts, not invented replacement interfaces. OIX exposes signed `evidence.submit` envelopes; Open-Swarm defines a local SQLite `PlatformEvent` journal and transactional outbox; Halloween OSINT publishes SHA-256 evidence manifests; Cyber Observatory can produce signed OIX evidence envelopes for local SBOM and file-manifest reports.
 
 See [Upstream Integration Contract](docs/INTEGRATION_CONTRACT.md) for field-level boundaries, validation requirements, approval rules, and the exact connectors that remain unimplemented. The current HDI adapters are reference contracts only.
+
+
+## HDI 0.2.0: durable local delivery
+
+The optional `SQLiteJournal` adds atomic event-plus-outbox persistence, idempotent append by event ID and canonical digest, lease-based worker claims, lease expiry/redelivery, acknowledgement and explicit release. See [Durable Delivery](docs/DURABLE_DELIVERY.md).
+
+This is a single-host SQLite primitive with at-least-once delivery semantics. It is not a multi-host broker, distributed consensus system, or exactly-once execution engine. External consumers must use stable idempotency keys.

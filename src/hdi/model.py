@@ -1,8 +1,8 @@
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
 import hashlib
 import json
 import re
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Any
 
 PROJECTS = {"oix", "open_swarm", "halloween_osint", "cyber_observatory", "hdi"}
@@ -90,7 +90,7 @@ class HDIEvent:
         if not isinstance(self.occurred_at, str):
             raise EventValidationError("occurred_at must be ISO-8601")
         try:
-            stamp = datetime.fromisoformat(self.occurred_at.replace("Z", "+00:00"))
+            stamp = datetime.fromisoformat(self.occurred_at)
         except ValueError as exc:
             raise EventValidationError("occurred_at must be ISO-8601") from exc
         if stamp.tzinfo is None:

@@ -1,11 +1,11 @@
-from datetime import UTC, datetime
 import hashlib
 import json
 import re
 import unicodedata
+from datetime import UTC, datetime
 
 from hdi.adapters.base import Adapter
-from hdi.model import HDIEvent, EventValidationError
+from hdi.model import EventValidationError, HDIEvent
 
 MESSAGE_TYPES = {
     "agent.hello": "oix.peer.hello_received",

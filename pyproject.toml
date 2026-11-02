@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "huffman-defensive-intelligence"
-version = "0.1.0"
-description = "Auditable integration contracts for decentralized open-source intelligence"
+version = "0.2.0"
+description = "Auditable integration contracts and durable local event delivery for decentralized open-source intelligence"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = []

@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
+
 import pytest
+
 from hdi.adapters import ALL_ADAPTERS
 from hdi.journal import Journal
 from hdi.model import HDIEvent
