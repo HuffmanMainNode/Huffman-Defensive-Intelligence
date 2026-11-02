@@ -1,7 +1,6 @@
 import json
 import sqlite3
 import uuid
-from pathlib import Path
 
 import pytest
 
@@ -130,7 +129,7 @@ def test_import_conflict_rolls_back_entire_batch_and_cursor(tmp_path):
     from hdi.adapters.open_swarm import OpenSwarmAdapter
 
     existing = OpenSwarmAdapter().normalize_platform_event(
-        {**first, "payload": {"indicator_type": "domain", "indicator": "wrong.example"}}
+        {**second, "payload": {"indicator_type": "domain", "indicator": "wrong.example"}}
     )
     journal.append(existing)
     with pytest.raises(EventConflictError):
