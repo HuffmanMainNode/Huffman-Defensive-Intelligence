@@ -39,3 +39,17 @@ def test_rejects_oversized_payload():
     raw["payload"] = {"blob": "x" * 260000}
     with pytest.raises(EventValidationError):
         HDIEvent.from_dict(raw)
+
+
+def test_rejects_floating_point_payload_values():
+    raw = sample()
+    raw["payload"] = {"confidence": 0.5}
+    with pytest.raises(EventValidationError):
+        HDIEvent.from_dict(raw)
+
+
+def test_rejects_non_string_payload_keys():
+    raw = sample()
+    raw["payload"] = {1: "invalid"}
+    with pytest.raises(EventValidationError):
+        HDIEvent.from_dict(raw)
