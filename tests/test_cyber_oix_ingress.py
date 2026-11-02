@@ -264,7 +264,6 @@ def test_normalized_event_recovers_after_crash_following_oix_replay_acceptance(t
         lambda p: p["collector"].update({"version": "v" * 33}),
         lambda p: p["artifact"].update({"media_type": "not-a-mime"}),
         lambda p: p["artifact"].update({"size_bytes": 1_000_000_000_001}),
-        lambda p: p["summary"].update({"unsafe_float": 1.25}),
         lambda p: p.update({"limitations": ["x" * 513]}),
     ],
 )
@@ -279,3 +278,12 @@ def test_upstream_evidence_field_limits_are_enforced_before_ingest(tmp_path, mut
         ingest(envelope, public, card, journal)
 
     assert list(journal.read_all()) == []
+
+
+def test_oix_canonical_payload_rejects_floats_before_signature_creation():
+    private, _, sender, _ = make_peer()
+    payload = evidence_payload()
+    payload["summary"]["unsafe_float"] = 1.25
+
+    with pytest.raises(EventValidationError, match="cannot contain floats"):
+        make_envelope(private, sender, payload)
