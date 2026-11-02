@@ -56,6 +56,31 @@ def signed_envelope(private, sender, message_type, payload, *, nonce):
     return {"body": body, "signature": b64url(private.sign(canonical_oix_json(body)))}
 
 
+class ApprovedInboxFixture:
+    def __init__(self, envelope, public):
+        self.sender = envelope["body"]["sender"]
+        self.public = public
+        self.work = {
+            "work_id": "conformance-approved-work",
+            "sender": self.sender,
+            "message_id": envelope["body"]["message_id"],
+            "work_type": "evidence.submit",
+            "payload": envelope["body"]["payload"],
+            "status": "approved",
+            "decided_at": 1100,
+        }
+
+    def trusted_peer_public_key(self, sender):
+        if sender != self.sender:
+            raise ValueError("untrusted peer")
+        return self.public
+
+    def get_work(self, work_id):
+        if work_id != self.work["work_id"]:
+            raise ValueError("unknown work")
+        return dict(self.work)
+
+
 def test_four_project_outputs_share_one_validated_idempotent_journal(tmp_path):
     journal = SQLiteJournal(tmp_path / "hdi.sqlite")
     private, public, sender, card = make_signed_peer()
@@ -141,12 +166,15 @@ def test_four_project_outputs_share_one_validated_idempotent_journal(tmp_path):
         cyber_payload,
         nonce="C" * 32,
     )
+    cyber_inbox = ApprovedInboxFixture(cyber_envelope, public)
     cyber_receipt = CyberObservatoryAdapter().verify_and_ingest_evidence_submit(
         cyber_envelope,
         card,
         trusted_signing_public_key=public,
         local_agent_id="hdi-conformance-agent",
         journal=journal,
+        inbox=cyber_inbox,
+        work_id="conformance-approved-work",
         now=1100,
     )
 
@@ -180,6 +208,8 @@ def test_four_project_outputs_share_one_validated_idempotent_journal(tmp_path):
         trusted_signing_public_key=public,
         local_agent_id="hdi-conformance-agent",
         journal=journal,
+        inbox=cyber_inbox,
+        work_id="conformance-approved-work",
         now=1100,
     )
     assert repeated_cyber == cyber_receipt
