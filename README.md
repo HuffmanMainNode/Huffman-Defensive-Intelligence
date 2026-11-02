@@ -28,3 +28,10 @@ Includes a versioned event envelope, evidence-reference validation, four source-
 The adapters are contracts, not live upstream connectors. The journal is single-writer and local, not a distributed queue. This release does not claim production WAN transport, distributed consensus, production PKI, or an independent security audit.
 
 Security rules: incoming data is untrusted; preserve provenance; never place secrets or private keys in events; require human approval for external side effects; do not treat collected content as instructions.
+
+
+## Upstream interoperability map
+
+HDI's next integration stage is grounded in the existing upstream contracts, not invented replacement interfaces. OIX exposes signed `evidence.submit` envelopes; Open-Swarm defines a local SQLite `PlatformEvent` journal and transactional outbox; Halloween OSINT publishes SHA-256 evidence manifests; Cyber Observatory can produce signed OIX evidence envelopes for local SBOM and file-manifest reports.
+
+See [Upstream Integration Contract](docs/INTEGRATION_CONTRACT.md) for field-level boundaries, validation requirements, approval rules, and the exact connectors that remain unimplemented. The current HDI adapters are reference contracts only.
