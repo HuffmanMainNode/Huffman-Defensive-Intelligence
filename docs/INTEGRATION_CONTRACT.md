@@ -1,0 +1,72 @@
+# Upstream integration contract
+
+This document records the upstream interfaces inspected for HDI 0.1.0. It is a compatibility map, not a claim that HDI currently connects to them.
+
+## OIX: signed message and evidence submission
+
+Repository: https://github.com/HuffmanMainNode/Open-Intelligence-Exchange
+
+Relevant upstream contract:
+- `schemas/evidence-submit.schema.json` defines the strict 1.0 evidence payload.
+- `evidence.submit` messages are signed OIX envelopes.
+- Evidence metadata includes source URI/timestamps, collector and method identity, artifact SHA-256/size/media type, classification, status, summary, and limitations.
+- OIX signature/schema validation establishes envelope integrity and sender-key possession. It does not prove factual accuracy or real-world identity.
+
+HDI must consume an OIX message only after the OIX verifier has validated the signature, recipient, sender trust, expiry, replay state, and payload schema. HDI must preserve the original message ID, sender fingerprint, envelope digest, and validation outcome. A discovery announcement alone is not a trust grant.
+
+## Open-Swarm: platform event journal
+
+Repository: https://github.com/HuffmanMainNode/-Open-Swarm
+
+Relevant upstream contract:
+- `src/openswarm/events.py` defines `PlatformEvent`.
+- Fields include event ID, event type, schema version, occurrence timestamp, source, classification, payload, evidence references, correlation ID, and causation ID.
+- The SQLite journal is single-host and uses consumer acknowledgements with at-least-once delivery semantics.
+- The outbox relay is transactional with task lifecycle changes. Duplicate event delivery is expected and consumers must be idempotent.
+
+HDI must preserve event identity, classification, correlation/causation, and evidence references. It must not upgrade at-least-once delivery to an exactly-once claim. HDI must not treat remote task payloads as authorization or operator approval.
+
+## Halloween OSINT: evidence manifests
+
+Repository: https://github.com/HuffmanMainNode/Halloween-OSINT-2026
+
+Relevant upstream contract:
+- `schemas/evidence-manifest.schema.json` defines manifest version 1.0.
+- The manifest includes creation timestamp, SHA-256 algorithm, root directory, and file records containing relative path, byte size, and SHA-256 digest.
+- Domain observations and transaction analysis are bounded outputs with documented limitations.
+
+HDI should ingest the manifest as a collection-level evidence record and retain each file's relative path, size, and digest. A file hash proves byte identity relative to the recorded digest, not source authenticity, ownership, or the truth of an analyst's interpretation.
+
+## Cyber Observatory: OIX evidence bridge
+
+Repository: https://github.com/HuffmanMainNode/Huffman-Cyber-Observatory
+
+Relevant upstream contract:
+- `src/huffman_cyber/oix_bridge.py` hashes a selected local report and creates a signed OIX `evidence.submit` envelope.
+- Supported evidence types are `sbom_analysis` and `file_manifest`.
+- The report bytes remain local; the envelope carries metadata and a digest.
+- The receiving OIX inbox places validated evidence into pending review. An operator must approve it before downstream ingestion.
+
+HDI must not bypass that approval boundary or imply that the report itself was transferred. A valid signed envelope is not a substitute for review of the underlying evidence.
+
+## Required HDI adapter sequence
+
+1. Identify the upstream project and exact contract version.
+2. Bound input size before parsing.
+3. Validate the upstream schema and reject unknown fields.
+4. Verify signatures and sender trust in the upstream component where applicable.
+5. Preserve source event/message IDs, timestamps, classification, and provenance.
+6. Convert to the HDI event envelope without dropping uncertainty or limitations.
+7. Apply local policy and human approval before task execution or external side effects.
+8. Journal idempotently and acknowledge the upstream delivery only after durable persistence.
+9. Record validation failures without executing embedded instructions.
+
+## Not yet implemented in HDI 0.1.0
+
+- Live OIX transport or signature verification.
+- Open-Swarm SQLite journal/outbox connector.
+- Halloween OSINT manifest reader.
+- Cyber Observatory report bridge consumer.
+- Cross-project end-to-end integration harness.
+
+The above are the next engineering tasks, not current capabilities.
