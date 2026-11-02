@@ -69,3 +69,12 @@ HDI now includes `OpenSwarmSQLiteImporter`, which reads the upstream `platform_e
 The normalized events, pending HDI outbox rows and source cursor are committed atomically in the destination journal. The importer never writes to the Open-Swarm database or acknowledges its consumer offsets. A stable source ID is bound to the resolved database path to prevent accidental cursor reuse against another file.
 
 This is a local pull importer, not a network connector or background service. See [Open-Swarm Import](docs/OPEN_SWARM_IMPORT.md). The existing `ingest_open_swarm_batch` callable remains available for integrations that already hold an Open-Swarm bus object.
+
+
+## HDI 0.6.0: Halloween OSINT manifest import
+
+HDI now includes `HalloweenManifestImporter` for bounded, read-only ingestion of Halloween OSINT SHA-256 evidence manifests. It rejects duplicate JSON keys, invalid UTF-8, oversized files, symlinked manifest paths, non-canonical relative evidence paths and duplicate file entries.
+
+The importer records the manifest digest and file metadata in the HDI journal while redacting the manifest's root path. It reads only the manifest file. It does not follow the manifest root, open evidence files, or independently verify their current contents. Use Halloween OSINT's own verification command when byte-level verification of the evidence directory is required.
+
+See [Halloween Manifest Import](docs/HALLOWEEN_MANIFEST_IMPORT.md).
