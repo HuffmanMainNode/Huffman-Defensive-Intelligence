@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "huffman-defensive-intelligence"
-version = "0.8.1"
+version = "0.9.0"
 description = "Auditable integration contracts and durable local event delivery for decentralized open-source intelligence"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -16,7 +16,7 @@ dev = ["pytest>=8.0", "ruff>=0.5"]
 [project.scripts]
 hdi = "hdi.cli:main"
 
-[tool.setuptools.packages.find]
+[tool.setuptools.package-data]\nhdi = ["agent-capabilities.json"]\n\n[tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
