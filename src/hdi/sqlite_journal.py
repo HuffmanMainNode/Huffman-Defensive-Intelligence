@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import time
+import uuid
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-import re
-import uuid
 
 from hdi.model import HASH, HDIEvent
 
