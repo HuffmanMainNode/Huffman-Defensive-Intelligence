@@ -28,6 +28,10 @@ def test_capabilities_is_valid_packaged_json(monkeypatch, capsys):
     }
     assert catalogue["journal_backends"][1]["concurrent_local_writers"] is True
     assert catalogue["journal_backends"][1]["delivery_semantics"] == "at_least_once"
+    assert (
+        "per_claim_lease_fencing_token_required_for_ack_and_release"
+        in catalogue["journal_backends"][1]["features"]
+    )
     assert catalogue["integration_demos"][0]["fixtures"] == "synthetic"
     assert {adapter["name"] for adapter in catalogue["adapters"]} == {
         "oix",
