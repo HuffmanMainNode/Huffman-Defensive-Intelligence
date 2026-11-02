@@ -19,7 +19,8 @@
 - [ ] Supervised Open-Swarm background relay and remote transport
 - [x] Halloween OSINT bounded read-only manifest import
 - [ ] Evidence-file re-verification and source authenticity workflow
-- [ ] Cyber Observatory finding/SBOM/KEV connector
+- [x] Verified OIX evidence.submit ingestion for Cyber Observatory metadata
+- [ ] Direct Cyber Observatory report/SBOM import and review workflow
 - [ ] Retry, dead-letter and approval semantics
 
 ## Stage 3: integration validation

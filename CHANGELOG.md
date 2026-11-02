@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+- Added a verified OIX evidence.submit to Cyber Observatory ingestion path.
+- Persisted the original OIX envelope event and normalized Cyber evidence event under distinct deterministic IDs.
+- Validated the Cyber evidence schema before durable replay acceptance.
+- Added tests for signed ingestion, idempotency, schema rejection, message-type rejection, signature tampering and nonce replay.
+
+
 ## 0.6.0
 - Added a bounded, read-only Halloween OSINT manifest importer.
 - Rejected duplicate JSON keys, oversized files, symlinked manifest paths and unsafe/duplicate evidence paths.

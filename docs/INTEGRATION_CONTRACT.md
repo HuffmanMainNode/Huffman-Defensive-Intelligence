@@ -103,3 +103,10 @@ The importer does not mutate source events, consumer offsets or outbox state. It
 HDI 0.6.0 adds `HalloweenManifestImporter` for bounded read-only ingestion of the upstream evidence-manifest v1.0 JSON format. It rejects duplicate JSON object keys, invalid UTF-8, oversized files, symlinked manifest paths, non-canonical relative file paths and duplicate file records. It preserves the manifest digest and file records while redacting the source root path from the normalized event.
 
 The importer reads only the manifest file. It does not follow the root path, read evidence files or recalculate their hashes. Byte-level evidence verification remains the responsibility of the upstream Halloween OSINT verifier. See `docs/HALLOWEEN_MANIFEST_IMPORT.md`.
+
+
+## Cyber Observatory verified evidence ingress implementation
+
+HDI 0.7.0 adds `CyberObservatoryAdapter.verify_and_ingest_evidence_submit(...)`. It verifies the OIX v0.1 signed agent card and envelope using the operator-supplied trusted Ed25519 public key, requires the OIX message type `evidence.submit`, validates the Cyber evidence payload, atomically accepts the OIX sender/nonce replay record, and then appends a separate normalized Cyber evidence event.
+
+The two events use distinct deterministic IDs: one records the authenticated OIX envelope and one records the normalized Cyber evidence metadata. Repeated identical deliveries are idempotent. The artifact itself is not transferred or fetched. The upstream OIX inbox's pending-review approval remains a separate workflow and is not bypassed by this local adapter. See `docs/CYBER_EVIDENCE_INGRESS.md`.
