@@ -10,7 +10,6 @@ from hdi.adapters.oix import (
 from hdi.adapters.open_swarm import OpenSwarmAdapter
 from hdi.model import EventValidationError
 
-
 VERIFIED = {key: True for key in OIX_CHECKS}
 DIGEST = "a" * 64
 
