@@ -14,7 +14,8 @@
 - [ ] Contract fixtures from all four upstream projects
 
 ## Stage 2: real connectors
-- [ ] OIX authenticated transport
+- [x] In-process OIX v0.1 Ed25519 verification and durable replay acceptance
+- [ ] OIX network transport/listener and trust-store synchronization
 - [ ] Open-Swarm task/event lifecycle connector
 - [ ] Halloween OSINT evidence-manifest connector
 - [ ] Cyber Observatory finding/SBOM/KEV connector
