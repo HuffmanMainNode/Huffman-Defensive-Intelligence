@@ -43,20 +43,33 @@ class CyberObservatoryAdapter(Adapter):
             raise EventValidationError("incomplete OIX evidence.submit payload")
         if payload["schema_version"] != "1.0":
             raise EventValidationError("unsupported evidence.submit schema")
-        if payload["evidence_type"] not in {"sbom_analysis", "file_manifest"}:
+        if not isinstance(payload["evidence_type"], str) or payload["evidence_type"] not in {"sbom_analysis", "file_manifest"}:
             raise EventValidationError("unsupported Cyber Observatory evidence type")
-        if payload["classification"] not in CLASSIFICATIONS or payload["status"] not in STATUSES:
+        if (not isinstance(payload["classification"], str)
+                or payload["classification"] not in CLASSIFICATIONS
+                or not isinstance(payload["status"], str)
+                or payload["status"] not in STATUSES):
             raise EventValidationError("invalid evidence classification or status")
-        if not isinstance(payload["collector"], dict) or not isinstance(payload["method"], dict):
-            raise EventValidationError("collector and method must be objects")
-        if not isinstance(payload["summary"], dict) or not isinstance(payload["limitations"], list):
-            raise EventValidationError("summary and limitations have invalid types")
+        for label in ("collector", "method"):
+            value = payload[label]
+            if (not isinstance(value, dict) or set(value) != {"name", "version"}
+                    or not isinstance(value["name"], str) or not value["name"].strip()
+                    or not isinstance(value["version"], str) or not value["version"].strip()):
+                raise EventValidationError(f"{label} must contain non-empty name and version")
+        if (not isinstance(payload["summary"], dict) or not payload["summary"]
+                or len(payload["summary"]) > 64
+                or not isinstance(payload["limitations"], list)
+                or len(payload["limitations"]) > 32):
+            raise EventValidationError("summary and limitations have invalid types or sizes")
         if not payload["limitations"] or any(
-            not isinstance(item, str) or not item.strip() for item in payload["limitations"]
+            not isinstance(item, str) or not item.strip() or len(item) > 512
+            for item in payload["limitations"]
         ):
             raise EventValidationError("evidence limitations must be explicit")
         artifact = payload["artifact"]
-        if not isinstance(artifact, dict) or not HASH.fullmatch(artifact.get("sha256", "")):
+        if (not isinstance(artifact, dict)
+                or not isinstance(artifact.get("sha256"), str)
+                or not HASH.fullmatch(artifact["sha256"])):
             raise EventValidationError("artifact SHA-256 is invalid")
         size = artifact.get("size_bytes")
         if not isinstance(size, int) or isinstance(size, bool) or size < 0:
@@ -65,9 +78,12 @@ class CyberObservatoryAdapter(Adapter):
             raise EventValidationError("artifact media_type is required")
         if not isinstance(sender_fingerprint, str) or not sender_fingerprint:
             raise EventValidationError("verified sender fingerprint is required")
-        if not HASH.fullmatch(envelope_sha256 or ""):
+        if not isinstance(envelope_sha256, str) or not HASH.fullmatch(envelope_sha256):
             raise EventValidationError("envelope_sha256 must be lowercase SHA-256")
-        if payload["source_uri"] is not None and not payload["source_uri"].startswith("https://"):
+        if payload["source_uri"] is not None and (
+            not isinstance(payload["source_uri"], str)
+            or not payload["source_uri"].startswith("https://")
+        ):
             raise EventValidationError("source_uri must be HTTPS or null")
         evidence_id = payload["evidence_id"]
         if not isinstance(evidence_id, str) or not re.fullmatch(
