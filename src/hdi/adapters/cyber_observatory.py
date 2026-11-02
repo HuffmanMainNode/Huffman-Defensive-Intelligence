@@ -1,6 +1,8 @@
 import re
+from uuid import NAMESPACE_URL, uuid5
 
 from hdi.adapters.base import Adapter
+from hdi.adapters.oix import OIXAdapter
 from hdi.model import HASH, EventValidationError, EvidenceReference, HDIEvent
 
 CLASSIFICATIONS = {"public", "internal", "restricted"}
@@ -26,7 +28,8 @@ class CyberObservatoryAdapter(Adapter):
         return event
 
     def normalize_verified_evidence_submit(
-        self, payload, *, message_id, sender_fingerprint, envelope_sha256, verification
+        self, payload, *, message_id, sender_fingerprint, envelope_sha256, verification,
+        normalized_event_id=None,
     ):
         if not isinstance(verification, dict) or any(
             verification.get(check) is not True for check in REQUIRED_CHECKS
@@ -92,7 +95,7 @@ class CyberObservatoryAdapter(Adapter):
         ):
             raise EventValidationError("evidence_id must be a lowercase UUID")
         event = HDIEvent(
-            event_id=message_id,
+            event_id=normalized_event_id or message_id,
             event_type="cyber.evidence.submitted",
             source_project=self.project_id,
             occurred_at=payload["collected_at"],
@@ -113,3 +116,64 @@ class CyberObservatoryAdapter(Adapter):
         )
         event.validate()
         return event
+
+
+    def verify_and_ingest_evidence_submit(
+        self,
+        envelope,
+        signed_card,
+        *,
+        trusted_signing_public_key,
+        local_agent_id,
+        journal,
+        now=None,
+    ):
+        """Verify a signed OIX evidence.submit, replay-accept it, then journal its evidence event.
+
+        The trusted public key must come from an operator-controlled trust store.
+        The OIX envelope event and normalized Cyber evidence event use distinct
+        deterministic IDs so both provenance layers can coexist in the journal.
+        """
+        verified = OIXAdapter().verify_and_normalize_envelope(
+            envelope,
+            signed_card,
+            trusted_signing_public_key=trusted_signing_public_key,
+            local_agent_id=local_agent_id,
+            now=now,
+        )
+        if verified.event.payload.get("message_type") != "evidence.submit":
+            raise EventValidationError("OIX message is not evidence.submit")
+        message_payload = verified.event.payload.get("message_payload")
+        verification = {
+            "signature_valid": True,
+            "sender_trusted": True,
+            "recipient_valid": True,
+            "replay_checked": True,
+            "payload_schema_valid": True,
+        }
+        evidence_event = self.normalize_verified_evidence_submit(
+            message_payload,
+            message_id=verified.event.event_id,
+            sender_fingerprint=verified.sender,
+            envelope_sha256=verified.envelope_sha256,
+            verification=verification,
+            normalized_event_id=str(
+                uuid5(NAMESPACE_URL, "hdi:cyber-evidence-submit:" + verified.event.event_id)
+            ),
+        )
+        # This is the durable replay gate. The evidence event is appended only
+        # after the OIX envelope has been accepted by that atomic gate.
+        journal.append_verified_oix(
+            verified.event,
+            sender=verified.sender,
+            nonce=verified.nonce,
+            envelope_sha256=verified.envelope_sha256,
+            expires_at=verified.expires_at,
+        )
+        evidence_digest = journal.append(evidence_event)
+        return {
+            "oix_message_id": verified.event.event_id,
+            "oix_envelope_sha256": verified.envelope_sha256,
+            "evidence_event_id": evidence_event.event_id,
+            "evidence_event_sha256": evidence_digest,
+        }
