@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from hdi.sqlite_journal import EventConflictError, LeaseError, SQLiteJournal
 from hdi.model import HDIEvent
+from hdi.sqlite_journal import EventConflictError, LeaseError, SQLiteJournal
 
 
 def sample_event():
