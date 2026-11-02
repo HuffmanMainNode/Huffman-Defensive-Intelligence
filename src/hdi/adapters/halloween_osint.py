@@ -1,6 +1,6 @@
 import hashlib
 import json
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from uuid import NAMESPACE_URL, uuid5
 
 from hdi.adapters.base import Adapter
@@ -68,3 +68,70 @@ class HalloweenOSINTAdapter(Adapter):
         )
         event.validate()
         return event
+
+
+def _reject_duplicate_manifest_keys(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise EventValidationError(f"duplicate JSON object key in manifest: {key}")
+        result[key] = value
+    return result
+
+
+class HalloweenManifestImporter:
+    """Read and normalize a bounded Halloween OSINT manifest file.
+
+    The importer reads only the manifest itself. It does not follow the
+    manifest's root path or open any evidence files listed inside it.
+    """
+
+    def __init__(self, manifest_path, *, max_bytes=1_000_000):
+        if (
+            not isinstance(max_bytes, int) or isinstance(max_bytes, bool)
+            or not 1 <= max_bytes <= 4_000_000
+        ):
+            raise ValueError("max_bytes must be between 1 and 4000000")
+        path = Path(manifest_path).expanduser()
+        if path.is_symlink() or any(parent.is_symlink() for parent in path.parents):
+            raise EventValidationError("manifest path must not traverse symlinks")
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError as exc:
+            raise EventValidationError("manifest file does not exist") from exc
+        if not resolved.is_file():
+            raise EventValidationError("manifest path must be a regular file")
+        if resolved.stat().st_size > max_bytes:
+            raise EventValidationError("manifest file exceeds configured size limit")
+        self.manifest_path = resolved
+        self.max_bytes = max_bytes
+
+    def read_manifest(self):
+        """Read strict UTF-8 JSON, rejecting duplicate keys and oversized input."""
+        try:
+            raw = self.manifest_path.read_bytes()
+        except OSError as exc:
+            raise EventValidationError("manifest file could not be read") from exc
+        if len(raw) > self.max_bytes:
+            raise EventValidationError("manifest file exceeds configured size limit")
+        try:
+            manifest = json.loads(
+                raw.decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_manifest_keys,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise EventValidationError("manifest must be valid UTF-8 JSON") from exc
+        if not isinstance(manifest, dict):
+            raise EventValidationError("manifest root must be a JSON object")
+        return manifest
+
+    def normalize(self):
+        """Return a deterministic HDI event without opening referenced evidence."""
+        manifest = self.read_manifest()
+        return HalloweenOSINTAdapter().normalize_manifest(manifest)
+
+    def import_into(self, journal):
+        """Append the normalized manifest idempotently to an HDI journal."""
+        event = self.normalize()
+        digest = journal.append(event)
+        return {"event_id": event.event_id, "digest": digest}
