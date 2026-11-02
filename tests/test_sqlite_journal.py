@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
@@ -58,10 +59,10 @@ def test_delivery_lease_acknowledgement_and_redelivery(tmp_path):
     second = journal.claim_next("worker-b", lease_seconds=10)
     assert second is not None and second.attempts == 2
     with pytest.raises(LeaseError):
-        journal.acknowledge(event.event_id, "worker-a")
+        journal.acknowledge(event.event_id, "worker-a", first.lease_token)
 
-    assert journal.acknowledge(event.event_id, "worker-b") is True
-    assert journal.acknowledge(event.event_id, "worker-b") is False
+    assert journal.acknowledge(event.event_id, "worker-b", second.lease_token) is True
+    assert journal.acknowledge(event.event_id, "worker-b", second.lease_token) is False
     assert journal.claim_next("worker-c") is None
     assert journal.outbox_counts() == {"pending": 0, "leased": 0, "delivered": 1}
 
@@ -71,7 +72,7 @@ def test_release_returns_item_to_pending(tmp_path):
     event = sample_event()
     journal.append(event)
     delivery = journal.claim_next("worker-a")
-    journal.release(event.event_id, "worker-a")
+    journal.release(event.event_id, "worker-a", delivery.lease_token)
     assert journal.outbox_counts()["pending"] == 1
     assert journal.claim_next("worker-b").event_id == delivery.event_id
 
@@ -79,7 +80,7 @@ def test_release_returns_item_to_pending(tmp_path):
 def test_unknown_event_acknowledgement_fails(tmp_path):
     journal = SQLiteJournal(tmp_path / "hdi.sqlite")
     with pytest.raises(KeyError):
-        journal.acknowledge("missing-event", "worker-a")
+        journal.acknowledge("missing-event", "worker-a", "0" * 32)
 
 
 def test_separate_journal_instances_share_idempotency_and_leases(tmp_path):
@@ -92,8 +93,8 @@ def test_separate_journal_instances_share_idempotency_and_leases(tmp_path):
     assert claim is not None
     assert second.claim_next("worker-b") is None
     with pytest.raises(LeaseError):
-        second.release(event.event_id, "worker-b")
-    second.acknowledge(event.event_id, "worker-a")
+        second.release(event.event_id, "worker-b", claim.lease_token)
+    second.acknowledge(event.event_id, "worker-a", claim.lease_token)
     assert first.outbox_counts()["delivered"] == 1
 
 
@@ -102,12 +103,19 @@ def test_lease_expiry_can_be_reclaimed_after_worker_restart(tmp_path):
     first = SQLiteJournal(tmp_path / "shared.sqlite", clock=lambda: now[0])
     event = sample_event()
     first.append(event)
-    assert first.claim_next("worker-before-crash", lease_seconds=5) is not None
+    stale = first.claim_next("worker-before-crash", lease_seconds=5)
+    assert stale is not None
     now[0] = 56.0
     restarted = SQLiteJournal(tmp_path / "shared.sqlite", clock=lambda: now[0])
-    recovered = restarted.claim_next("worker-after-restart", lease_seconds=5)
+    recovered = restarted.claim_next("worker-before-crash", lease_seconds=5)
     assert recovered is not None
     assert recovered.attempts == 2
+    assert recovered.lease_token != stale.lease_token
+    with pytest.raises(LeaseError, match="active, unexpired"):
+        restarted.acknowledge(event.event_id, "worker-before-crash", stale.lease_token)
+    assert restarted.acknowledge(
+        event.event_id, "worker-before-crash", recovered.lease_token
+    ) is True
 
 
 def test_concurrent_connections_append_same_event_once(tmp_path):
@@ -155,3 +163,54 @@ def test_concurrent_processes_append_same_event_once(tmp_path):
     assert journal.outbox_counts() == {
         "pending": 1, "leased": 0, "delivered": 0
     }
+
+
+def test_expired_lease_cannot_be_acknowledged_before_reclaim(tmp_path):
+    now = [100.0]
+    journal = SQLiteJournal(tmp_path / "lease-expiry.sqlite", clock=lambda: now[0])
+    event = sample_event()
+    journal.append(event)
+    delivery = journal.claim_next("worker-a", lease_seconds=5)
+    now[0] = 105.0
+    with pytest.raises(LeaseError, match="active, unexpired"):
+        journal.acknowledge(event.event_id, "worker-a", delivery.lease_token)
+
+
+def test_legacy_owner_only_lease_is_reset_during_schema_migration(tmp_path):
+    database = tmp_path / "legacy.sqlite"
+    event = sample_event()
+    encoded = json.dumps(
+        event.to_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    with sqlite3.connect(database) as db:
+        db.execute("""
+            CREATE TABLE events (
+                event_id TEXT PRIMARY KEY,
+                digest TEXT NOT NULL,
+                event_json TEXT NOT NULL,
+                created_at REAL NOT NULL
+            )
+        """)
+        db.execute("""
+            CREATE TABLE outbox (
+                event_id TEXT PRIMARY KEY REFERENCES events(event_id),
+                state TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                lease_owner TEXT,
+                lease_until REAL,
+                delivered_at REAL
+            )
+        """)
+        db.execute(
+            "INSERT INTO events VALUES(?,?,?,?)",
+            (event.event_id, event.canonical_sha256(), encoded, 1.0),
+        )
+        db.execute(
+            "INSERT INTO outbox VALUES(?,?,?,?,?,?)",
+            (event.event_id, "leased", 1, "legacy-worker", 9999.0, None),
+        )
+    journal = SQLiteJournal(database, clock=lambda: 1000.0)
+    delivery = journal.claim_next("new-worker")
+    assert delivery is not None
+    assert delivery.event_id == event.event_id
+    assert delivery.attempts == 2
