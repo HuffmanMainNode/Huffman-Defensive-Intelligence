@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 
 from hdi.adapters.open_swarm import ingest_open_swarm_batch
+from hdi.model import EventValidationError
 from hdi.sqlite_journal import SQLiteJournal
 
 
@@ -95,7 +96,7 @@ def test_invalid_source_event_is_not_acknowledged(tmp_path):
     bus = FakeBus([FakeRecord(2, FakeEvent(raw))])
     journal = SQLiteJournal(tmp_path / "hdi.sqlite")
 
-    with pytest.raises(Exception, match="classification"):
+    with pytest.raises(EventValidationError, match="classification"):
         ingest_open_swarm_batch(bus, journal, consumer_id="hdi-test")
 
     assert bus.acknowledged == []
