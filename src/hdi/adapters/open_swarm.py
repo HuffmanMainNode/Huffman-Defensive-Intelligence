@@ -1,11 +1,35 @@
+import json
+import sqlite3
+from dataclasses import dataclass
+from pathlib import Path
+
 from hdi.adapters.base import Adapter
 from hdi.model import EventValidationError, HDIEvent
 
+
 CLASSIFICATIONS = {"public", "internal", "restricted"}
+PLATFORM_EVENT_COLUMNS = {
+    "sequence", "event_id", "event_type", "schema_version", "occurred_at",
+    "source", "classification", "correlation_id", "causation_id",
+    "evidence_refs_json", "payload_json", "canonical_json",
+}
+PLATFORM_EVENT_FIELDS = {
+    "event_id", "event_type", "source", "payload", "schema_version",
+    "classification", "evidence_refs", "correlation_id", "causation_id",
+    "occurred_at",
+}
+
+
+@dataclass(frozen=True)
+class OpenSwarmImportResult:
+    source_id: str
+    imported_count: int
+    last_sequence: int
+    event_ids: tuple[str, ...]
 
 
 class OpenSwarmAdapter(Adapter):
-    """Normalize the upstream Open-Swarm PlatformEvent contract."""
+    """Normalize Open-Swarm PlatformEvent records."""
 
     project_id = "open_swarm"
 
@@ -19,12 +43,7 @@ class OpenSwarmAdapter(Adapter):
         return event
 
     def normalize_platform_event(self, raw):
-        required = {
-            "event_id", "event_type", "source", "payload", "schema_version",
-            "classification", "evidence_refs", "correlation_id", "causation_id",
-            "occurred_at",
-        }
-        if not isinstance(raw, dict) or set(raw) != required:
+        if not isinstance(raw, dict) or set(raw) != PLATFORM_EVENT_FIELDS:
             raise EventValidationError("incomplete or unknown Open-Swarm PlatformEvent fields")
         if raw["schema_version"] != "1.0":
             raise EventValidationError("unsupported Open-Swarm event schema")
@@ -58,3 +77,103 @@ class OpenSwarmAdapter(Adapter):
         )
         event.validate()
         return event
+
+
+class OpenSwarmSQLiteImporter:
+    """Read-only importer for the upstream SQLiteEventBus platform_events table.
+
+    It never mutates the source database. The HDI target journal stores the
+    source sequence cursor atomically with normalized event and outbox writes.
+    """
+
+    def __init__(self, source_database: str | Path, *, source_id: str):
+        if not isinstance(source_id, str) or not source_id.strip() or len(source_id) > 128:
+            raise ValueError("source_id must contain 1 to 128 characters")
+        path = Path(source_database)
+        if path.is_symlink() or any(parent.is_symlink() for parent in path.parents):
+            raise ValueError("Open-Swarm source database path must not traverse symlinks")
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError as exc:
+            raise ValueError("Open-Swarm source database does not exist") from exc
+        if not resolved.is_file():
+            raise ValueError("Open-Swarm source database must be a regular file")
+        self.source_database = resolved
+        self.source_id = source_id
+        self.adapter = OpenSwarmAdapter()
+
+    def _connect_read_only(self):
+        db = sqlite3.connect(
+            f"{self.source_database.as_uri()}?mode=ro",
+            uri=True,
+            timeout=5.0,
+        )
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA query_only=ON")
+        db.execute("PRAGMA busy_timeout=5000")
+        return db
+
+    def _read_batch(self, after_sequence: int, limit: int):
+        if not isinstance(after_sequence, int) or isinstance(after_sequence, bool) or after_sequence < 0:
+            raise ValueError("after_sequence must be a non-negative integer")
+        if not 1 <= limit <= 1000:
+            raise ValueError("limit must be between 1 and 1000")
+        with self._connect_read_only() as db:
+            columns = {
+                row["name"] for row in db.execute("PRAGMA table_info(platform_events)")
+            }
+            if columns != PLATFORM_EVENT_COLUMNS:
+                raise EventValidationError("Open-Swarm platform_events schema does not match contract")
+            rows = db.execute(
+                """SELECT sequence,event_id,event_type,schema_version,occurred_at,source,
+                          classification,correlation_id,causation_id,evidence_refs_json,
+                          payload_json,canonical_json
+                   FROM platform_events WHERE sequence>? ORDER BY sequence LIMIT ?""",
+                (after_sequence, limit),
+            ).fetchall()
+        events = []
+        event_ids = []
+        last_sequence = after_sequence
+        for row in rows:
+            sequence = row["sequence"]
+            if not isinstance(sequence, int) or sequence <= last_sequence:
+                raise EventValidationError("Open-Swarm event sequence is not strictly increasing")
+            try:
+                raw = json.loads(row["canonical_json"])
+                payload = json.loads(row["payload_json"])
+                evidence_refs = json.loads(row["evidence_refs_json"])
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise EventValidationError("Open-Swarm source row contains invalid JSON") from exc
+            if not isinstance(raw, dict) or set(raw) != PLATFORM_EVENT_FIELDS:
+                raise EventValidationError("Open-Swarm canonical event has an invalid field set")
+            canonical = json.dumps(
+                raw, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+            )
+            if canonical != row["canonical_json"]:
+                raise EventValidationError("Open-Swarm canonical event bytes do not match source")
+            if raw["payload"] != payload or raw["evidence_refs"] != evidence_refs:
+                raise EventValidationError("Open-Swarm indexed columns disagree with canonical event")
+            for field in (
+                "event_id", "event_type", "schema_version", "occurred_at", "source",
+                "classification", "correlation_id", "causation_id",
+            ):
+                if raw[field] != row[field]:
+                    raise EventValidationError(f"Open-Swarm source column mismatch: {field}")
+            event = self.adapter.normalize_platform_event(raw)
+            events.append(event)
+            event_ids.append(event.event_id)
+            last_sequence = sequence
+        return events, tuple(event_ids), last_sequence
+
+    def import_into(self, journal, *, limit: int = 100) -> OpenSwarmImportResult:
+        """Import the next source batch with an atomic HDI cursor update."""
+        offset = journal.source_offset(self.source_id)
+        events, event_ids, last_sequence = self._read_batch(offset, limit)
+        if not events:
+            return OpenSwarmImportResult(self.source_id, 0, offset, ())
+        journal.append_batch_with_offset(
+            events, source_id=self.source_id, last_sequence=last_sequence
+        )
+        return OpenSwarmImportResult(
+            self.source_id, len(events), last_sequence, event_ids
+        )
