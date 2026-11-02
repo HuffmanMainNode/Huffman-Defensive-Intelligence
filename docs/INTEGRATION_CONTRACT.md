@@ -61,10 +61,10 @@ HDI must not bypass that approval boundary or imply that the report itself was t
 8. Journal idempotently and acknowledge the upstream delivery only after durable persistence.
 9. Record validation failures without executing embedded instructions.
 
-## Not yet implemented in HDI 0.1.0
+## Not yet implemented in HDI 0.4.0
 
 - Live OIX transport or signature verification.
-- Open-Swarm SQLite journal/outbox connector.
+- A continuously supervised Open-Swarm background relay or service.
 - Halloween OSINT manifest reader.
 - Cyber Observatory report bridge consumer.
 - Cross-project end-to-end integration harness.
@@ -79,7 +79,7 @@ The above are the next engineering tasks, not current capabilities.
 - `HalloweenOSINTAdapter.normalize_manifest(...)` validates the manifest file records and creates a deterministic event ID from the canonical manifest digest.
 - `CyberObservatoryAdapter.normalize_verified_evidence_submit(...)` accepts the Cyber evidence payload only with the same explicit OIX verification attestation and preserves artifact digest and sender provenance.
 
-These are in-process normalization functions. They are not network clients, do not open the upstream SQLite databases, and do not bypass the OIX inbox's pending-review state.
+These are in-process normalization functions. The Open-Swarm consumer can be wired to an already-open upstream SQLiteEventBus and HDI SQLiteJournal; it does not discover or open either database automatically. The functions do not bypass the OIX inbox's pending-review state.
 
 
 ## Authenticated OIX ingress implementation
