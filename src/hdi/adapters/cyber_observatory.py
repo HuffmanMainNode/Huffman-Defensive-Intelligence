@@ -39,8 +39,8 @@ class CyberObservatoryAdapter(Adapter):
             "source_timestamp", "collected_at", "collector", "method", "artifact",
             "classification", "status", "summary", "limitations",
         }
-        if not required.issubset(payload):
-            raise EventValidationError("incomplete OIX evidence.submit payload")
+        if set(payload) != required:
+            raise EventValidationError("incomplete or unknown OIX evidence.submit fields")
         if payload["schema_version"] != "1.0":
             raise EventValidationError("unsupported evidence.submit schema")
         if not isinstance(payload["evidence_type"], str) or payload["evidence_type"] not in {"sbom_analysis", "file_manifest"}:
@@ -68,6 +68,7 @@ class CyberObservatoryAdapter(Adapter):
             raise EventValidationError("evidence limitations must be explicit")
         artifact = payload["artifact"]
         if (not isinstance(artifact, dict)
+                or set(artifact) != {"sha256", "size_bytes", "media_type"}
                 or not isinstance(artifact.get("sha256"), str)
                 or not HASH.fullmatch(artifact["sha256"])):
             raise EventValidationError("artifact SHA-256 is invalid")
