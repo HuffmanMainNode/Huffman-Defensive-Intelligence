@@ -1,6 +1,9 @@
 # Roadmap
 
 ## Stage 0: reference foundation
+- [x] Human first-run onboarding and project selection guide
+- [x] Agent onboarding and repository operating contract
+- [x] Machine-readable capability catalogue and CLI discovery commands
 - [x] Event envelope and evidence-reference validation
 - [x] Four source-specific adapter contracts
 - [x] Local JSONL journal and router
@@ -8,6 +11,7 @@
 
 ## Stage 1: contract maturity
 - [ ] Stable schema and compatibility policy
+- [ ] User-facing diagnostic command for local connector prerequisites
 - [x] OIX v0.1 Ed25519 signature and operator-trusted peer verification
 - [x] Idempotency and replay test vectors
 - [ ] Journal crash-recovery and concurrent-writer tests

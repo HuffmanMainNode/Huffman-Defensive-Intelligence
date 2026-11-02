@@ -61,7 +61,7 @@ HDI must not bypass that approval boundary or imply that the report itself was t
 8. Journal idempotently and acknowledge the upstream delivery only after durable persistence.
 9. Record validation failures without executing embedded instructions.
 
-## Remaining work as of HDI 0.8.0
+## Remaining work as of HDI 0.9.0
 
 - OIX network transport/listener, trust-store synchronization, key rotation and revocation distribution.
 - A continuously supervised Open-Swarm background relay/service and remote transport.

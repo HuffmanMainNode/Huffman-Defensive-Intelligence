@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+- Added a human onboarding guide and a dedicated AI/developer agent operating guide.
+- Added repository-level `AGENTS.md` safety and engineering contract.
+- Added a packaged machine-readable adapter capability catalogue and `hdi capabilities` discovery command.
+- Added `hdi guide` and `hdi --version`; aligned runtime and package versions.
+- Added onboarding CLI tests and updated first-run documentation.
+
+
 ## 0.8.1
 - Closed the Cyber evidence-ingress approval gap: HDI now requires a matching, durably approved OIX inbox work item before journal ingestion.
 - Added OIX inbox lookup of durable work decisions and current trusted peer keys.
