@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -118,7 +119,7 @@ class OpenSwarmSQLiteImporter:
             raise ValueError("after_sequence must be a non-negative integer")
         if not 1 <= limit <= 1000:
             raise ValueError("limit must be between 1 and 1000")
-        with self._connect_read_only() as db:
+        with closing(self._connect_read_only()) as db:
             columns = {
                 row["name"] for row in db.execute("PRAGMA table_info(platform_events)")
             }
