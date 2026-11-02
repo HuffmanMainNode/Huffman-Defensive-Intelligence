@@ -34,7 +34,7 @@ A signature proves possession of a private key corresponding to a trusted public
 
 ## Enforcement points
 
-HDI requires a caller-supplied OIX inbox object and work ID. Before writing to the HDI journal it:
+HDI requires a caller-supplied OIX inbox object exposing the read-only `trusted_peer_public_key(agent_id)` and `get_work(work_id)` methods, plus the exact work ID. Before writing to the HDI journal it:
 
 1. Independently verifies the signed card and envelope.
 2. Resolves the sender's currently trusted public key from the supplied inbox and requires an exact key match.
