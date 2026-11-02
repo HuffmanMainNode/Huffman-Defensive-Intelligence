@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 
 from hdi.model import HDIEvent
 
+
 class Adapter(ABC):
     project_id: str
 
