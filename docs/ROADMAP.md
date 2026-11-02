@@ -8,10 +8,10 @@
 
 ## Stage 1: contract maturity
 - [ ] Stable schema and compatibility policy
-- [ ] OIX-backed event signature verification
+- [x] OIX v0.1 Ed25519 signature and operator-trusted peer verification
 - [x] Idempotency and replay test vectors
 - [ ] Journal crash-recovery and concurrent-writer tests
-- [ ] Contract fixtures from all four upstream projects
+- [x] Synthetic contract fixtures from all four upstream project adapters
 
 ## Stage 2: real connectors
 - [ ] OIX authenticated transport
