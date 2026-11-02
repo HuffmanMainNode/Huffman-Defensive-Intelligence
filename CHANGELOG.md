@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+- Added a durable Open-Swarm consumer that appends normalized events to HDI before acknowledging the source offset.
+- Added retry-safe idempotent ingestion across the append/ack crash window.
+- Added tests for provenance preservation, failed acknowledgements, invalid classification, and batch bounds.
+
+
 ## 0.3.0
 - Added OIX v0.1 Ed25519 signed-agent-card and message-envelope verification.
 - Added operator-trusted peer-key matching and exact recipient/time-window checks.
