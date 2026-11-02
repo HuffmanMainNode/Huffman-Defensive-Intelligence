@@ -214,3 +214,63 @@ def test_legacy_owner_only_lease_is_reset_during_schema_migration(tmp_path):
     assert delivery is not None
     assert delivery.event_id == event.event_id
     assert delivery.attempts == 2
+
+
+@pytest.mark.parametrize("crash_phase", ["after_event_insert", "after_outbox_insert"])
+def test_process_death_before_commit_rolls_back_entire_append(tmp_path, crash_phase):
+    """An abrupt child exit during the transaction must not leave partial rows."""
+    import subprocess
+    import sys
+
+    database = tmp_path / f"crash-{crash_phase}.sqlite"
+    marker = tmp_path / f"{crash_phase}.ready"
+    SQLiteJournal(database)
+    event = sample_event()
+    event_json = json.dumps(
+        event.to_dict(), sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    )
+
+    child_code = r"""
+import os
+import sqlite3
+import sys
+from pathlib import Path
+
+database, event_id, digest, event_json, marker, phase = sys.argv[1:]
+db = sqlite3.connect(database, timeout=10.0, isolation_level=None)
+db.execute("PRAGMA foreign_keys=ON")
+db.execute("PRAGMA synchronous=FULL")
+db.execute("BEGIN IMMEDIATE")
+db.execute(
+    "INSERT INTO events(event_id,digest,event_json,created_at) VALUES(?,?,?,?)",
+    (event_id, digest, event_json, 1234.0),
+)
+if phase == "after_outbox_insert":
+    db.execute(
+        "INSERT INTO outbox(event_id,state,attempts) VALUES(?,'pending',0)",
+        (event_id,),
+    )
+Path(marker).write_text("transaction is open", encoding="utf-8")
+os._exit(91)
+"""
+    completed = subprocess.run(
+        [
+            sys.executable, "-c", child_code, str(database),
+            event.event_id, event.canonical_sha256(), event_json, str(marker), crash_phase,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    assert completed.returncode == 91
+    assert marker.read_text(encoding="utf-8") == "transaction is open"
+
+    recovered = SQLiteJournal(database)
+    assert list(recovered.read_all()) == []
+    assert recovered.outbox_counts() == {"pending": 0, "leased": 0, "delivered": 0}
+
+    recovered.append(event)
+    assert len(list(recovered.read_all())) == 1
+    assert recovered.outbox_counts() == {"pending": 1, "leased": 0, "delivered": 0}
