@@ -37,7 +37,7 @@ class HalloweenOSINTAdapter(Adapter):
                 raise EventValidationError("malformed manifest file record")
             rel = PurePosixPath(item["path"]) if isinstance(item["path"], str) else None
             if (rel is None or rel.is_absolute() or ".." in rel.parts or not item["path"]
-                    or "\\" in item["path"] or "\\x00" in item["path"]):
+                    or "\\" in item["path"] or "\x00" in item["path"]):
                 raise EventValidationError("manifest paths must be safe relative POSIX paths")
             if (not isinstance(item["size_bytes"], int) or isinstance(item["size_bytes"], bool)
                     or item["size_bytes"] < 0):
