@@ -11,7 +11,6 @@ from pathlib import Path
 from hdi.model import HDIEvent
 
 
-
 class EventConflictError(ValueError):
     """An event ID was reused for different canonical event content."""
 
