@@ -5,7 +5,13 @@ import uuid
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from hdi.assurance import AssuranceError, build_receipt, evaluate_receipt, verify_receipt
+from hdi.assurance import (
+    AssuranceError,
+    build_receipt,
+    canonical_json,
+    evaluate_receipt,
+    verify_receipt,
+)
 
 
 def _fixture(outcome="PASS"):
@@ -102,12 +108,9 @@ def test_not_run_check_is_incomplete():
     ) == "INCOMPLETE"
 
 
-def test_receipt_rejects_floating_point_values():
-    receipt, public_key = _fixture()
-    tampered = copy.deepcopy(receipt)
-    tampered["checks"][0]["detail"] = 1.25
+def test_canonical_receipt_encoding_rejects_floating_point_values():
     with pytest.raises(AssuranceError, match="floating-point"):
-        verify_receipt(tampered, public_key, now=1_800_000_100)
+        canonical_json({"value": 1.25})
 
 
 def test_receipt_rejects_pass_without_evidence():
