@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://huffmanprotocol.org/schemas/assurance-receipt-v0.1.schema.json",
+  "$id": "urn:huffman:protocol:schema:assurance-receipt:0.1",
   "title": "Huffman Protocol Assurance Receipt v0.1",
   "type": "object",
   "additionalProperties": false,
