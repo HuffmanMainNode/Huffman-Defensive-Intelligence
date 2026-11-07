@@ -277,11 +277,20 @@ def verify_receipt(
 
 def evaluate_receipt(
     receipt: dict[str, Any],
+    public_key: bytes,
     required_check_ids: set[str] | None = None,
+    *,
+    now: int | None = None,
+    expected_nonce: str | None = None,
 ) -> str:
-    """Return PASS, FAIL, or INCOMPLETE; this is not a certification decision."""
+    """Verify the receipt, then return PASS, FAIL, or INCOMPLETE.
+
+    This is a test-result classification, not a certification decision.
+    """
+    verify_receipt(
+        receipt, public_key, now=now, expected_nonce=expected_nonce
+    )
     body = {key: value for key, value in receipt.items() if key != "signature"}
-    _validate_body(body)
     checks = {item["check_id"]: item["outcome"] for item in body["checks"]}
     if any(outcome == "FAIL" for outcome in checks.values()):
         return "FAIL"
