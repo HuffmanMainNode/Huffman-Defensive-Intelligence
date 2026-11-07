@@ -98,6 +98,17 @@ The conformance suite now exercises OIX, Open-Swarm, Halloween OSINT and Cyber O
 
 This is a deterministic in-process integration test using synthetic fixtures. It is not a four-process deployment test, a WAN mesh, or a production environment. See [Cross-Project Conformance](docs/CROSS_PROJECT_CONFORMANCE.md) and the [Fault-Injection Matrix](docs/FAULT_INJECTION.md).
 
+## Huffman Protocol Assurance v0.1
+
+HDI now includes the first experimental Huffman Protocol assurance receipt primitive. It creates Ed25519-signed, portable records binding a test result to a verifier key, tested implementation/version, test-suite digest, run identifier, challenge nonce, per-check outcomes, and evidence digests.
+
+The library is available as `hdi.assurance`:
+- `build_receipt(...)` creates a signed receipt.
+- `verify_receipt(...)` checks structure, signature, verifier identity, validity window, and an optional expected challenge nonce.
+- `evaluate_receipt(...)` verifies the signature before returning PASS, FAIL, or INCOMPLETE.
+
+This is a receipt primitive, not yet a live A2A/MCP test runner, protocol certification, proof of honest execution, or guarantee that evidence is true. See the [Huffman Assurance Profile](protocol/huffman-assurance-v0.1.md) and [development roadmap](docs/HUFFMAN_PROTOCOL_ROADMAP.md).
+
 ## Start here: human and agent onboarding
 
 New operators: begin with [Human Onboarding](docs/USER-ONBOARDING.md). AI agents and automation workers: read [Agent Onboarding](docs/AGENT-ONBOARDING.md) and the repository-level [AGENTS.md](AGENTS.md) before using adapters.
