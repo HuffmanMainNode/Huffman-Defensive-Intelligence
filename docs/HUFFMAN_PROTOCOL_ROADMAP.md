@@ -22,10 +22,10 @@ The following components already exist in the Huffman repository ecosystem:
 
 The first cross-project lifecycle gap has been closed at the local dispatch boundary:
 - OIX peer revocation terminally changes that peer's pending, review-pending, and approved inbound work to revoked, and rejects pending, approved, or signed-but-undelivered result outbox records. Re-trusting the peer does not revive old approvals or results.
-- Open-Swarm rechecks that the OIX sender remains in the trusted-peer store before handoff and excludes revoked senders from bulk handoff.
+- Open-Swarm rechecks the OIX sender before handoff, before adapter execution, and again at task completion. Revoked queued work is blocked; output generated during an inference that overlaps revocation is discarded and not added to the result outbox.
 - Regression tests passed in the configured Python 3.11, 3.12, and 3.13 matrices in both repositories.
 
-This does not cancel tasks already dispatched, retract results already transmitted, or provide distributed revocation propagation. The exact state contract and limitations are documented in [Huffman Protocol Revocation Boundary](HUFFMAN_PROTOCOL_REVOCATION.md).
+This does not interrupt an inference already running, undo external side effects already performed, retract results already transmitted, or provide distributed revocation propagation. Future side-effecting adapters require per-action authorization checks. The exact state contract and limitations are documented in [Huffman Protocol Revocation Boundary](HUFFMAN_PROTOCOL_REVOCATION.md).
 
 These components have different maturity levels. Local tests and loopback demonstrations must not be described as production WAN deployment or independent security certification.
 
