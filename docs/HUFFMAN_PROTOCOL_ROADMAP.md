@@ -18,6 +18,15 @@ The following components already exist in the Huffman repository ecosystem:
 - **HDI:** evidence normalization, authenticated OIX ingress, durable SQLite journal, idempotent delivery, source adapters, and cross-project conformance tests.
 - **Huffman Assurance v0.1:** signed portable test-run receipts, challenge binding, evidence digests, and PASS/FAIL/INCOMPLETE result classification.
 
+## Implemented revocation hardening
+
+The first cross-project lifecycle gap has been closed at the local dispatch boundary:
+- OIX peer revocation terminally changes that peer's pending, review-pending, and approved inbound work to revoked. Re-trusting the peer does not revive old approvals.
+- Open-Swarm rechecks that the OIX sender remains in the trusted-peer store before handoff and excludes revoked senders from bulk handoff.
+- Regression tests passed in the configured Python 3.11, 3.12, and 3.13 matrices in both repositories.
+
+This does not cancel tasks already dispatched and does not provide distributed revocation propagation. The exact state contract and limitations are documented in [Huffman Protocol Revocation Boundary](HUFFMAN_PROTOCOL_REVOCATION.md).
+
 These components have different maturity levels. Local tests and loopback demonstrations must not be described as production WAN deployment or independent security certification.
 
 ## Prior-art rule
