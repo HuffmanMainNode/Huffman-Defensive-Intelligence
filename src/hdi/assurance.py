@@ -178,7 +178,7 @@ def _validate_body(body: Mapping[str, Any]) -> None:
             raise AssuranceError("check requirement must be a non-empty string")
         if len(check["requirement"]) > 512:
             raise AssuranceError("check requirement is too long")
-        if check["outcome"] not in ALLOWED_OUTCOMES:
+        if not isinstance(check["outcome"], str) or check["outcome"] not in ALLOWED_OUTCOMES:
             raise AssuranceError("unsupported check outcome")
         if "detail" in check and (
             not isinstance(check["detail"], str) or len(check["detail"]) > 1000
