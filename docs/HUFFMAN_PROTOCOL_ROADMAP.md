@@ -13,6 +13,7 @@ Huffman Protocol is not intended to replace A2A, MCP, OIX, identity standards, m
 The following components already exist in the Huffman repository ecosystem:
 
 - **OIX:** Ed25519 agent identities and signed messages, capability labels, approval-gated inbox, encryption primitives, discovery, receipts, replay controls, and experimental local/network transports.
+- **AAP:** external authorization specification and broker model to evaluate for delegated grants, resource scoping, revocation, and credential confinement. No AAP adapter is currently implemented in the Huffman repositories.
 - **Open-Swarm:** local task orchestration, model adapters, approval gates, SQLite task lifecycle, durable outbox, and event journal.
 - **HDI:** evidence normalization, authenticated OIX ingress, durable SQLite journal, idempotent delivery, source adapters, and cross-project conformance tests.
 - **Huffman Assurance v0.1:** signed portable test-run receipts, challenge binding, evidence digests, and PASS/FAIL/INCOMPLETE result classification.
@@ -24,15 +25,20 @@ These components have different maturity levels. Local tests and loopback demons
 Do not rebuild capabilities that already have mature open implementations. Evaluate and integrate:
 
 - OAP RFC 0019 for signed conformance receipts, receipt verification, live re-verification, and peer witnesses.
+- OpenA2A AAP for scoped capability grants, cross-agent delegation, revocation propagation, and broker-side credential confinement. AAP is an active Internet-Draft; its current draft and reference implementation maturity must be checked at each integration.
 - A2A TCK for A2A transport and behavior conformance.
 - HandoffProbe for A2A-to-MCP handoff security scenarios.
 - AgentRFC/AgentConform and AgentThread for specification-derived invariants, formal modeling, and counterexample replay.
 
-Huffman work should concentrate on reproducible tests of the existing OIX/Open-Swarm/HDI composition, especially lifecycle and durable-state behavior that crosses repository and protocol boundaries. Where an upstream standard already solves a problem, prefer compatibility or contribution upstream over a competing format.
+Huffman work should concentrate on a practical integration profile spanning AAP authorization, A2A agent collaboration, MCP tool access, and the OIX/Open-Swarm/HDI execution and evidence components. The key test question is whether the combined system preserves authority, revocation, approval, and evidence lineage across every boundary. Where an upstream standard already solves a problem, prefer compatibility or contribution upstream over a competing identity, authorization, transport, or receipt format.
 
 ## Architecture
 
 ### 1. Protocol adapters
+
+The first target profile should map AAP authorization decisions to A2A task delegation and MCP tool calls, while preserving OIX message identity and HDI evidence lineage. It must not mint a parallel Huffman authorization token if an AAP credential can be verified and enforced by the operator-controlled broker.
+
+The first implementation target is a local, disposable test environment. Do not claim AAP interoperability until the exact draft version, schema, cryptographic profile, and conformance fixtures have been pinned and tested.
 
 A common adapter contract should expose:
 - implementation identity and version;
