@@ -79,23 +79,27 @@ def test_receipt_rejects_tampered_check_outcome():
 
 
 def test_overall_result_passes_only_when_required_checks_pass():
-    receipt, _ = _fixture()
-    assert evaluate_receipt(receipt, {"AUTH-001"}) == "PASS"
+    receipt, public_key = _fixture()
+    assert evaluate_receipt(receipt, public_key, {"AUTH-001"}, now=1_800_000_100) == "PASS"
 
 
 def test_missing_required_check_is_incomplete():
-    receipt, _ = _fixture()
-    assert evaluate_receipt(receipt, {"AUTH-001", "REPLAY-001"}) == "INCOMPLETE"
+    receipt, public_key = _fixture()
+    assert evaluate_receipt(
+        receipt, public_key, {"AUTH-001", "REPLAY-001"}, now=1_800_000_100
+    ) == "INCOMPLETE"
 
 
 def test_failed_check_fails_overall_result():
-    receipt, _ = _fixture(outcome="FAIL")
-    assert evaluate_receipt(receipt, {"AUTH-001"}) == "FAIL"
+    receipt, public_key = _fixture(outcome="FAIL")
+    assert evaluate_receipt(receipt, public_key, {"AUTH-001"}, now=1_800_000_100) == "FAIL"
 
 
 def test_not_run_check_is_incomplete():
-    receipt, _ = _fixture(outcome="NOT_RUN")
-    assert evaluate_receipt(receipt, {"AUTH-001"}) == "INCOMPLETE"
+    receipt, public_key = _fixture(outcome="NOT_RUN")
+    assert evaluate_receipt(
+        receipt, public_key, {"AUTH-001"}, now=1_800_000_100
+    ) == "INCOMPLETE"
 
 
 def test_receipt_rejects_floating_point_values():
