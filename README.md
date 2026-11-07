@@ -109,7 +109,7 @@ The library is available as `hdi.assurance`:
 
 This is a receipt primitive, not yet a live A2A/MCP test runner, protocol certification, proof of honest execution, or guarantee that evidence is true. See the [Huffman Assurance Profile](protocol/huffman-assurance-v0.1.md) and [development roadmap](docs/HUFFMAN_PROTOCOL_ROADMAP.md).
 
-The first cross-project revocation hardening is also implemented: OIX terminally revokes pending and approved work when a peer is removed, and Open-Swarm rechecks current peer trust before dispatch. See [Revocation Boundary](docs/HUFFMAN_PROTOCOL_REVOCATION.md). Already-dispatched work is not automatically canceled.
+The first cross-project revocation hardening is also implemented: OIX terminally revokes pending and approved work, rejects undelivered result records when a peer is removed, and Open-Swarm rechecks current peer trust before dispatch. See [Revocation Boundary](docs/HUFFMAN_PROTOCOL_REVOCATION.md). Already-dispatched work is not automatically canceled, and already-transmitted results cannot be retracted.
 
 ## Start here: human and agent onboarding
 
