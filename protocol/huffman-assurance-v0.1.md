@@ -75,9 +75,19 @@ Adapters must be read-only by default. Tests that submit tasks, invoke tools, or
 
 ## 8. Prior art and differentiation
 
-This profile does not claim to invent agent conformance testing. Existing work includes the A2A Technology Compatibility Kit, HandoffProbe's A2A-to-MCP handoff security tests, and research such as AgentRFC/AgentThread on protocol security analysis and composition.
+This work sits in an active field and does not claim to invent agent conformance testing, signed conformance receipts, cross-protocol security testing, or formal protocol analysis.
 
-The proposed contribution is a small, portable receipt contract that can carry independently inspectable results across these tools and future adapters. That distinction must be validated through implementation and external review, not asserted as proven novelty.
+Relevant prior art includes:
+
+- [Open Agent Protocol RFC 0019](https://github.com/openagentprotocol-OAP/oap-spec/blob/main/rfcs/RFC-0019-conformance-testing-and-implementability.md), which already specifies an executable conformance suite, signed Conformance Receipts, autonomous receipt verification, optional live re-execution, and peer-witness signatures for higher conformance levels. This is direct prior art for portable signed conformance evidence.
+- [A2A Technology Compatibility Kit](https://github.com/a2aproject/a2a-tck), which tests A2A implementations across gRPC, JSON-RPC, and HTTP+JSON.
+- [HandoffProbe](https://github.com/Heaviside479/handoffprobe), which tests security properties that can be lost across A2A-to-MCP handoffs, including identity continuity, delegated authority, replay, cancellation, and audit lineage.
+- [AgentRFC / AgentConform](https://arxiv.org/abs/2603.23801), which describes specification-derived security invariants, TLA+ model checking, and replay of counterexamples against live SDK implementations.
+- [AgentThread](https://arxiv.org/abs/2606.28690), which studies protocol composition safety and traces findings from specification clauses into implementation tests.
+
+The Huffman v0.1 receipt is narrower than these broader systems. It is a verifier-signed record of a bounded test run, not an implementation-issued OAP Conformance Receipt, a conformance-level registry entry, a formal proof, or a live protocol test suite. It must not be presented as a novel conformance standard.
+
+The candidate Huffman contribution is an operational integration harness for the existing OIX, Open-Swarm, and HDI components, with reproducible cross-component tests for delegated authority, revocation, durable event delivery, replay, restart recovery, and evidence lineage. The value must come from working adapters and independently reproducible failure tests, not from another receipt format. Future work should evaluate direct OAP receipt interoperability and upstream collaboration before extending the Huffman schema.
 
 ## 9. Maturity
 
