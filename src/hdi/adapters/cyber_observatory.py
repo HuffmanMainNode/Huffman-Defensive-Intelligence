@@ -221,6 +221,7 @@ class CyberObservatoryAdapter(Adapter):
         journal,
         inbox,
         work_id,
+        artifact_bytes=None,
         now=None,
     ):
         """Verify a signed OIX evidence.submit, replay-accept it, then journal its evidence event.
@@ -277,6 +278,11 @@ class CyberObservatoryAdapter(Adapter):
                 uuid5(NAMESPACE_URL, "hdi:cyber-evidence-submit:" + verified.event.event_id)
             ),
         )
+        artifact_verification = None
+        if artifact_bytes is not None:
+            artifact_verification = self.verify_artifact_bytes(message_payload, artifact_bytes)
+            evidence_event.payload["artifact_byte_verification"] = artifact_verification
+            evidence_event.validate()
         # This is the durable replay gate. The evidence event is appended only
         # after the OIX envelope has been accepted by that atomic gate.
         journal.append_verified_oix(
@@ -292,4 +298,5 @@ class CyberObservatoryAdapter(Adapter):
             "oix_envelope_sha256": verified.envelope_sha256,
             "evidence_event_id": evidence_event.event_id,
             "evidence_event_sha256": evidence_digest,
+            "artifact_byte_verification": artifact_verification,
         }
