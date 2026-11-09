@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import re
 from datetime import datetime
 from urllib.parse import urlsplit
@@ -9,6 +11,8 @@ from hdi.model import HASH, EventValidationError, EvidenceReference, HDIEvent
 
 CLASSIFICATIONS = {"public", "internal", "restricted"}
 STATUSES = {"observed", "derived", "unverified"}
+MAX_LOCAL_ARTIFACT_BYTES = 64 * 1024 * 1024
+
 REQUIRED_CHECKS = (
     "signature_valid", "sender_trusted", "recipient_valid",
     "replay_checked", "payload_schema_valid",
@@ -167,6 +171,46 @@ class CyberObservatoryAdapter(Adapter):
         return event
 
 
+    def verify_artifact_bytes(self, payload, artifact_bytes):
+        """Verify operator-supplied artifact bytes against declared evidence metadata.
+
+        This performs byte-identity verification only. It does not fetch source_uri,
+        establish who created the artifact, or establish that its contents are true.
+        """
+        if not isinstance(payload, dict):
+            raise EventValidationError("evidence payload must be an object")
+        artifact = payload.get("artifact")
+        if not isinstance(artifact, dict):
+            raise EventValidationError("evidence artifact metadata is required")
+        if not isinstance(artifact_bytes, bytes):
+            raise EventValidationError("artifact bytes must be supplied as immutable bytes")
+        if len(artifact_bytes) > MAX_LOCAL_ARTIFACT_BYTES:
+            raise EventValidationError(
+                f"artifact exceeds local verification limit of {MAX_LOCAL_ARTIFACT_BYTES} bytes"
+            )
+        expected_size = artifact.get("size_bytes")
+        if (
+            not isinstance(expected_size, int)
+            or isinstance(expected_size, bool)
+            or expected_size < 0
+        ):
+            raise EventValidationError("artifact size_bytes must be a non-negative integer")
+        if len(artifact_bytes) != expected_size:
+            raise EventValidationError("artifact byte length does not match declared size_bytes")
+        expected_digest = artifact.get("sha256")
+        if not isinstance(expected_digest, str) or not HASH.fullmatch(expected_digest):
+            raise EventValidationError("artifact SHA-256 metadata is invalid")
+        actual_digest = hashlib.sha256(artifact_bytes).hexdigest()
+        if not hmac.compare_digest(actual_digest, expected_digest):
+            raise EventValidationError("artifact bytes do not match declared SHA-256")
+        return {
+            "verified": True,
+            "sha256": actual_digest,
+            "size_bytes": len(artifact_bytes),
+            "verification_scope": "byte-identity-only",
+            "source_authenticity_verified": False,
+        }
+
     def verify_and_ingest_evidence_submit(
         self,
         envelope,
@@ -177,6 +221,7 @@ class CyberObservatoryAdapter(Adapter):
         journal,
         inbox,
         work_id,
+        artifact_bytes=None,
         now=None,
     ):
         """Verify a signed OIX evidence.submit, replay-accept it, then journal its evidence event.
@@ -233,6 +278,11 @@ class CyberObservatoryAdapter(Adapter):
                 uuid5(NAMESPACE_URL, "hdi:cyber-evidence-submit:" + verified.event.event_id)
             ),
         )
+        artifact_verification = None
+        if artifact_bytes is not None:
+            artifact_verification = self.verify_artifact_bytes(message_payload, artifact_bytes)
+            evidence_event.payload["artifact_byte_verification"] = artifact_verification
+            evidence_event.validate()
         # This is the durable replay gate. The evidence event is appended only
         # after the OIX envelope has been accepted by that atomic gate.
         journal.append_verified_oix(
@@ -248,4 +298,5 @@ class CyberObservatoryAdapter(Adapter):
             "oix_envelope_sha256": verified.envelope_sha256,
             "evidence_event_id": evidence_event.event_id,
             "evidence_event_sha256": evidence_digest,
+            "artifact_byte_verification": artifact_verification,
         }
