@@ -287,3 +287,53 @@ def test_oix_canonical_payload_rejects_floats_before_signature_creation():
 
     with pytest.raises(EventValidationError, match="cannot contain floats"):
         make_envelope(private, sender, payload)
+
+
+def test_supplied_artifact_bytes_are_verified_against_metadata():
+    adapter = CyberObservatoryAdapter()
+    payload = evidence_payload()
+    artifact_bytes = b"synthetic evidence artifact"
+    payload["artifact"]["sha256"] = hashlib.sha256(artifact_bytes).hexdigest()
+    payload["artifact"]["size_bytes"] = len(artifact_bytes)
+
+    result = adapter.verify_artifact_bytes(payload, artifact_bytes)
+
+    assert result == {
+        "verified": True,
+        "sha256": hashlib.sha256(artifact_bytes).hexdigest(),
+        "size_bytes": len(artifact_bytes),
+        "verification_scope": "byte-identity-only",
+        "source_authenticity_verified": False,
+    }
+
+
+def test_supplied_artifact_bytes_reject_digest_mismatch():
+    adapter = CyberObservatoryAdapter()
+    payload = evidence_payload()
+    payload["artifact"]["size_bytes"] = 4
+
+    with pytest.raises(EventValidationError, match="SHA-256"):
+        adapter.verify_artifact_bytes(payload, b"data")
+
+
+def test_supplied_artifact_bytes_reject_size_mismatch():
+    adapter = CyberObservatoryAdapter()
+    payload = evidence_payload()
+    payload["artifact"]["size_bytes"] = 5
+    payload["artifact"]["sha256"] = hashlib.sha256(b"data").hexdigest()
+
+    with pytest.raises(EventValidationError, match="byte length"):
+        adapter.verify_artifact_bytes(payload, b"data")
+
+
+def test_supplied_artifact_bytes_reject_mutable_and_oversized_values(monkeypatch):
+    import hdi.adapters.cyber_observatory as cyber_module
+
+    adapter = CyberObservatoryAdapter()
+    payload = evidence_payload()
+    with pytest.raises(EventValidationError, match="immutable bytes"):
+        adapter.verify_artifact_bytes(payload, bytearray(b"data"))
+
+    monkeypatch.setattr(cyber_module, "MAX_LOCAL_ARTIFACT_BYTES", 3)
+    with pytest.raises(EventValidationError, match="local verification limit"):
+        adapter.verify_artifact_bytes(payload, b"four")
