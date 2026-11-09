@@ -61,6 +61,6 @@ The caller is responsible for receiving the envelope through OIX, resolving the 
 
 ## Optional local artifact-byte verification
 
-The adapter also exposes `verify_artifact_bytes(payload, artifact_bytes)` for an operator-supplied immutable byte string. It checks the declared byte length and SHA-256 digest, with a 64 MiB in-memory limit. It does not fetch `source_uri`, does not download remote content, and does not prove source authenticity or factual accuracy. A successful result is explicitly labeled `byte-identity-only`.
+The adapter also exposes `verify_artifact_bytes(payload, artifact_bytes)` for an operator-supplied immutable byte string. The optional `artifact_bytes` argument on `verify_and_ingest_evidence_submit` invokes this check before replay acceptance and stores the byte-identity receipt in the normalized evidence event. It checks the declared byte length and SHA-256 digest, with a 64 MiB in-memory limit. It does not fetch `source_uri`, does not download remote content, and does not prove source authenticity or factual accuracy. A successful result is explicitly labeled `byte-identity-only`.
 
 For larger artifacts, use a separately reviewed streaming verifier rather than raising the in-memory limit without analysis. Keep artifact bytes in the operator-controlled evidence store; do not embed them in OIX messages.
